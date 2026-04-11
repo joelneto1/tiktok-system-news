@@ -129,7 +129,7 @@ class GrokAutomation:
         timeout: float,
     ) -> dict[int, str | None]:
         """Process a single batch of prompts in parallel tabs."""
-        ctx = await browser_pool.get_context(account_id, cookies=cookies, proxy=proxy)
+        pw, browser, ctx = await browser_pool.get_context(account_id, cookies=cookies, proxy=proxy)
         results: dict[int, str | None] = {}
         pages: dict[int, Page] = {}
 
@@ -184,6 +184,7 @@ class GrokAutomation:
                     await page.close()
                 except Exception:
                     pass
+            await browser_pool.release(pw, browser, ctx)
 
         return results
 

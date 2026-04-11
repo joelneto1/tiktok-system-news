@@ -15,73 +15,35 @@ from app.utils.logger import logger
 class BrowserPool:
     """Manages Playwright browser instances and contexts.
 
-    Supports two modes:
-    - Local: launches a local Chromium browser
-    - CDP: connects to an existing Chromium via Chrome DevTools Protocol (noVNC container)
+    Each call creates a fresh Playwright instance to avoid event loop conflicts
+    when running inside Celery (which creates a new loop per task).
     """
-
-    def __init__(self) -> None:
-        self._playwright: Playwright | None = None
-        self._browser: Browser | None = None
-        self._lock = asyncio.Lock()
-        self._contexts: dict[str, BrowserContext] = {}  # account_id -> context
-
-    async def _ensure_browser(self) -> Browser:
-        """Lazily initialize Playwright and connect/launch browser."""
-        async with self._lock:
-            if self._browser and self._browser.is_connected():
-                return self._browser
-
-            self._playwright = await async_playwright().start()
-
-            cdp_url = settings.CDP_URL  # e.g. http://localhost:9222
-            try:
-                # Try CDP connection first (noVNC container)
-                self._browser = await self._playwright.chromium.connect_over_cdp(
-                    cdp_url
-                )
-                logger.info(f"Connected to browser via CDP: {cdp_url}")
-            except Exception as e:
-                logger.warning(f"CDP connection failed ({e}), launching local browser")
-                self._browser = await self._playwright.chromium.launch(
-                    headless=True,
-                    args=["--no-sandbox", "--disable-dev-shm-usage"],
-                )
-                logger.info("Launched local headless Chromium")
-
-            return self._browser
 
     async def get_context(
         self,
         account_id: str,
         cookies: list[dict] | None = None,
         proxy: dict | None = None,
-    ) -> BrowserContext:
-        """Get or create a browser context for an account.
+    ) -> tuple[Playwright, Browser, BrowserContext]:
+        """Create a fresh browser context for an account.
 
-        Args:
-            account_id: Unique ID for this account's context.
-            cookies: List of cookie dicts to inject.
-            proxy: Proxy config ``{"server": "http://...", "username": "...", "password": "..."}``.
-
-        Returns:
-            BrowserContext ready for automation.
+        Returns a tuple of (playwright, browser, context) — caller must close all three
+        when done by calling release().
         """
-        # Return existing context if available and still connected
-        if account_id in self._contexts:
-            ctx = self._contexts[account_id]
-            try:
-                # Test if context is still alive
-                if ctx.pages:
-                    await ctx.pages[0].title()
-                return ctx
-            except Exception:
-                # Context died, remove it
-                del self._contexts[account_id]
+        pw = await async_playwright().start()
 
-        browser = await self._ensure_browser()
+        cdp_url = settings.CDP_URL
+        try:
+            browser = await pw.chromium.connect_over_cdp(cdp_url)
+            logger.info(f"Connected to browser via CDP: {cdp_url}")
+        except Exception as e:
+            logger.warning(f"CDP connection failed ({e}), launching local browser")
+            browser = await pw.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"],
+            )
+            logger.info("Launched local headless Chromium")
 
-        # Create new context with optional proxy
         ctx_options: dict = {
             "viewport": {"width": 1280, "height": 720},
             "user_agent": (
@@ -95,52 +57,49 @@ class BrowserPool:
 
         ctx = await browser.new_context(**ctx_options)
 
-        # Inject cookies if provided
         if cookies:
             await ctx.add_cookies(cookies)
             logger.debug(f"Injected {len(cookies)} cookies for account {account_id}")
 
-        self._contexts[account_id] = ctx
-        return ctx
+        return pw, browser, ctx
 
-    async def get_page(self, account_id: str, **kwargs) -> Page:
-        """Get a new page in the account's context."""
-        ctx = await self.get_context(account_id, **kwargs)
+    async def get_page(
+        self,
+        account_id: str,
+        cookies: list[dict] | None = None,
+        proxy: dict | None = None,
+    ) -> tuple[Playwright, Browser, BrowserContext, Page]:
+        """Get a new page with fresh browser. Returns (pw, browser, ctx, page)."""
+        pw, browser, ctx = await self.get_context(account_id, cookies=cookies, proxy=proxy)
         page = await ctx.new_page()
-        return page
+        return pw, browser, ctx, page
 
-    async def capture_cookies(self, account_id: str) -> list[dict]:
-        """Capture all cookies from an account's context."""
-        if account_id not in self._contexts:
-            return []
-        ctx = self._contexts[account_id]
+    async def release(
+        self,
+        pw: Playwright,
+        browser: Browser,
+        ctx: BrowserContext,
+    ) -> None:
+        """Close context, browser and playwright instance."""
+        try:
+            await ctx.close()
+        except Exception:
+            pass
+        try:
+            await browser.close()
+        except Exception:
+            pass
+        try:
+            await pw.stop()
+        except Exception:
+            pass
+        logger.debug("Browser resources released")
+
+    async def capture_cookies(self, ctx: BrowserContext) -> list[dict]:
+        """Capture all cookies from a context."""
         cookies = await ctx.cookies()
-        logger.info(f"Captured {len(cookies)} cookies from account {account_id}")
+        logger.info(f"Captured {len(cookies)} cookies")
         return cookies
-
-    async def release_context(self, account_id: str) -> None:
-        """Close and release a context."""
-        if account_id in self._contexts:
-            try:
-                await self._contexts[account_id].close()
-            except Exception:
-                pass
-            del self._contexts[account_id]
-
-    async def close_all(self) -> None:
-        """Cleanup all contexts and browser."""
-        for aid in list(self._contexts.keys()):
-            await self.release_context(aid)
-        if self._browser:
-            try:
-                await self._browser.close()
-            except Exception:
-                pass
-            self._browser = None
-        if self._playwright:
-            await self._playwright.stop()
-            self._playwright = None
-        logger.info("Browser pool closed")
 
 
 # Singleton

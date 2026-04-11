@@ -64,7 +64,7 @@ class DreamFaceAutomation:
         Returns:
             Local path to the downloaded result video
         """
-        page = await browser_pool.get_page(
+        pw, browser, ctx, page = await browser_pool.get_page(
             account_id, cookies=cookies, proxy=proxy
         )
 
@@ -121,7 +121,7 @@ class DreamFaceAutomation:
                 pass
             raise
         finally:
-            await page.close()
+            await browser_pool.release(pw, browser, ctx)
 
     async def _accept_cookies(self, page: Page):
         """Accept cookie banner if present."""
