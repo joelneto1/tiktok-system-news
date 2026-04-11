@@ -200,21 +200,20 @@ class GrokAutomation:
             pass
 
     async def _configure_video_settings(self, page: Page):
-        """Configure Grok for video generation: Video mode, 720p, 9:16 aspect."""
+        """Configure Grok for video generation: Video mode, 720p, 9:16 aspect, 6s duration."""
 
         # Click "Video" mode button
         try:
             video_btn = page.get_by_text("Vídeo", exact=True)
             if await video_btn.is_visible(timeout=3000):
                 await video_btn.click()
-                await page.wait_for_timeout(500)
+                await page.wait_for_timeout(1000)
                 self.logger.debug("Grok: Video mode selected")
         except (PlaywrightTimeout, Exception):
-            # Try English fallback
             try:
                 video_btn = page.get_by_text("Video", exact=True)
                 await video_btn.click()
-                await page.wait_for_timeout(500)
+                await page.wait_for_timeout(1000)
             except Exception:
                 pass
 
@@ -228,20 +227,27 @@ class GrokAutomation:
         except (PlaywrightTimeout, Exception):
             pass
 
+        # Click "6s" duration
+        try:
+            dur_btn = page.get_by_text("6s", exact=True)
+            if await dur_btn.is_visible(timeout=2000):
+                await dur_btn.click()
+                await page.wait_for_timeout(500)
+                self.logger.debug("Grok: 6s duration selected")
+        except (PlaywrightTimeout, Exception):
+            pass
+
         # Click "9:16" aspect ratio
         try:
             aspect_btn = page.locator('button[aria-label="Aspecto de proporção"]')
             if not await aspect_btn.is_visible(timeout=2000):
-                # Try English label
                 aspect_btn = page.locator('button[aria-label="Aspect ratio"]')
 
             if await aspect_btn.is_visible(timeout=2000):
-                # Check if already 9:16
                 text = await aspect_btn.inner_text()
                 if "9:16" not in text:
                     await aspect_btn.click()
                     await page.wait_for_timeout(500)
-                    # Select 9:16 from dropdown if needed
                     try:
                         option = page.get_by_text("9:16", exact=True)
                         await option.click()
