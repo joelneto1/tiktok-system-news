@@ -12,6 +12,7 @@ services:
         condition: service_healthy
     networks:
       - default
+      - coolify-proxy
       - coolify-db
     restart: unless-stopped
     healthcheck:
@@ -48,6 +49,9 @@ services:
     restart: unless-stopped
 
 networks:
+  coolify-proxy:
+    external: true
+    name: coolify
   coolify-db:
     external: true
     name: lcog0wgcwsws0okwoc8kck4s_coolify-network
