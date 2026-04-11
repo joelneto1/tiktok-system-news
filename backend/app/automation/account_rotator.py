@@ -57,19 +57,48 @@ class AccountRotator:
         return account
 
     async def get_account_cookies(self, account: ConnectionAccount) -> list[dict]:
-        """Parse cookies JSON from an account record."""
+        """Parse cookies from an account record. Handles encrypted + raw formats."""
         if not account.cookies_json:
             return []
+
+        raw = account.cookies_json
+
+        # Try to decrypt if encrypted (Fernet tokens start with 'gAAAAA')
+        if raw.startswith("gAAAAA"):
+            try:
+                from app.utils.crypto import decrypt_value
+                raw = decrypt_value(raw)
+            except Exception as e:
+                logger.error(f"Failed to decrypt cookies for {account.account_name}: {e}")
+                return []
+
+        # Try JSON array format first (Playwright cookie format)
         try:
-            cookies = json.loads(account.cookies_json)
+            cookies = json.loads(raw)
             if isinstance(cookies, list):
                 return cookies
-            return []
         except json.JSONDecodeError:
-            logger.error(
-                f"Invalid cookies JSON for account {account.account_name}"
-            )
-            return []
+            pass
+
+        # Fall back to cookie string format: "name1=value1; name2=value2"
+        cookie_list = []
+        domain = ".dreamfaceapp.com" if account.service == "dreamface" else ".grok.com" if account.service == "grok" else ".example.com"
+        for pair in raw.split(";"):
+            pair = pair.strip()
+            if "=" in pair:
+                name, value = pair.split("=", 1)
+                cookie_list.append({
+                    "name": name.strip(),
+                    "value": value.strip(),
+                    "domain": domain,
+                    "path": "/",
+                })
+        if cookie_list:
+            logger.debug(f"Parsed {len(cookie_list)} cookies from string for {account.account_name}")
+            return cookie_list
+
+        logger.error(f"Could not parse cookies for {account.account_name}")
+        return []
 
     async def get_account_proxy(self, account: ConnectionAccount) -> dict | None:
         """Parse proxy URL from account into Playwright proxy config.
