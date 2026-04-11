@@ -1,0 +1,59 @@
+# ── Environment ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+.eggs/
+*.whl
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Node.js ───────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# ── Logs ──────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── IDE ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Docker / Data ─────────────────────────────────────────────────────
+docker-compose.override.yml
+backend/data/
+*.db
+*.sqlite3
+
+# ── Media / Temp ──────────────────────────────────────────────────────
+tmp/
+*.mp4
+*.webm
+*.mp3
+*.wav

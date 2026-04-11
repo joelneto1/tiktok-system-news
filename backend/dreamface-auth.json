@@ -1,0 +1,197 @@
+{
+  "cookies": [
+    {
+      "name": "i18n_redirected",
+      "value": "pt",
+      "domain": "www.dreamfaceapp.com",
+      "path": "/",
+      "expires": 1807369776,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_fbp",
+      "value": "fb.1.1775833776748.363212863806497772",
+      "domain": ".dreamfaceapp.com",
+      "path": "/",
+      "expires": 1783609824,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.192689831.1775833777",
+      "domain": ".dreamfaceapp.com",
+      "path": "/",
+      "expires": 1810393809.339904,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gcl_au",
+      "value": "1.1.1847445953.1775833777.637335433.1775833807.1775833806",
+      "domain": ".dreamfaceapp.com",
+      "path": "/",
+      "expires": 1783609777,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "IDE",
+      "value": "AHWqTUk74XzS0-Mss9EjY1U35DCLsS7LjsgV4y1VW293snCn3Uadvrl4BmNT-Asl",
+      "domain": ".doubleclick.net",
+      "path": "/",
+      "expires": 1810393806.799064,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga_WJ2V0Q5LHL",
+      "value": "GS2.1.s1775833776$o1$g1$t1775833809$j27$l0$h0",
+      "domain": ".dreamfaceapp.com",
+      "path": "/",
+      "expires": 1810393809.35747,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_PRYWW9H8MC",
+      "value": "GS2.1.s1775833776$o1$g1$t1775833809$j27$l0$h0",
+      "domain": ".dreamfaceapp.com",
+      "path": "/",
+      "expires": 1810393809.365308,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "g_state",
+      "value": "{\"i_l\":0,\"i_ll\":1775833809421,\"i_b\":\"646JVqRfZ33xd3yqIswhYXHAJt7gVyPcIESmz8Ds1Fc\",\"i_e\":{\"enable_itp_optimization\":0},\"i_et\":1775833809421}",
+      "domain": "www.dreamfaceapp.com",
+      "path": "/",
+      "expires": 1791385809,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "8kchVKnFuNQoducXti21LMXZGBAnFeRRToaT7BkBtsc-1775834710.3359132-1.0.1.1-2OQR7Q1akOgUlvfLpsS7mscheeS165UJ0W1NjXxAe5D3SKcK9VKJxm7uC6V_kMb4S_hA7w1.jOPIRkJ7FiUycDmegzxrPHX9WY1Yqfusl8D._GHYZcCaIytTN.ldjDQo",
+      "domain": ".dreamfaceapp.com",
+      "path": "/",
+      "expires": 1775836510.50007,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://www.dreamfaceapp.com",
+      "localStorage": [
+        {
+          "name": "sendWeblogSuccess",
+          "value": "{\"webviewId\":\"8C6ED72A546EB5DD\",\"hasSendLogList\":[{\"coldStartId\":\"960ee04a53712604\",\"seqId\":1,\"uid\":\"7caa4de69876ded4c7ca033dd514663c\",\"time\":1775833809423,\"oid\":\"dfweb_dream_visitWeb\",\"action\":2,\"foid\":\"none\",\"ffid\":\"dfweb_dream_finishLogin\",\"logmap\":{\"chanId\":\"\",\"type\":\"\",\"playTypes\":\"\",\"source\":\"Organic\",\"medium\":\"\",\"campaign\":\"\",\"content\":\"\",\"placement\":\"\",\"network\":\"Organic\",\"adDevice\":\"\",\"adId\":\"bea1d02b2eb5c470ec4d63113aca9059\"}},{\"coldStartId\":\"960ee04a53712604\",\"seqId\":2,\"uid\":\"7caa4de69876ded4c7ca033dd514663c\",\"time\":1775833809423,\"oid\":\"dfweb_dream_toolsChannel\",\"action\":2,\"foid\":\"dfweb_dream_visitWeb\",\"ffid\":\"dfweb_dream_finishLogin\",\"logmap\":{\"chanId\":\"\",\"type\":\"\",\"playTypes\":\"\"}},{\"coldStartId\":\"960ee04a53712604\",\"seqId\":3,\"uid\":\"7caa4de69876ded4c7ca033dd514663c\",\"time\":1775833809423,\"oid\":\"dfweb_dream_avatarVideo\",\"action\":2,\"foid\":\"dfweb_dream_toolsChannel\",\"ffid\":\"dfweb_dream_finishLogin\",\"logmap\":{}}],\"uuid\":\"C0C1BD5F95C85DC5\"}"
+        },
+        {
+          "name": "71735868c2d179bbf28ddbc24387035b",
+          "value": "92f15723-cd03-4867-bfc3-6cd1dcae644f"
+        },
+        {
+          "name": "isAvatar",
+          "value": "true"
+        },
+        {
+          "name": "cookie-accept",
+          "value": "true"
+        },
+        {
+          "name": "ffid",
+          "value": "dfweb_dream_avatarVideo"
+        },
+        {
+          "name": "upload_first_flag",
+          "value": "first"
+        },
+        {
+          "name": "b42b53ffd5cbc178df7d36cc0db27932",
+          "value": "5b72099d-7c63-4287-a262-6f113e48a4bd"
+        },
+        {
+          "name": "_gcl_ls",
+          "value": "{\"schema\":\"gcl\",\"version\":1,\"gcl_ctr\":{\"value\":{\"value\":0,\"timeouts\":0,\"errors\":0,\"eopCount\":0,\"creationTimeMs\":1775833776588},\"expires\":1783609776588}}"
+        },
+        {
+          "name": "f5c8e5076df19ee3120af47e17e0cfda",
+          "value": "c299b4fe5ecb714a053e07b178d0d43c"
+        },
+        {
+          "name": "weblogConfig",
+          "value": "{\"token\":\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcHBWZXIiOiIxMzEuMC4wLjAiLCJsb2dWZXIiOiIwLjAuMS1hbHBoYS40MSIsImV4cCI6MTc3NTg0MDk3NywiZGV2aWNlSWQiOiIxNTQ1N2ExZGM0MmFlMDY3MGMwNzRlMzg5ZDRkNGUzZiIsInBsYXRmb3JtIjoid2ViIiwiZGV2aWNlSW5mbyI6Im5vbmUiLCJwbGF0Zm9ybVZlciI6Ing2NCJ9.oERk7d6Nl4ZVetxsy4jEXgEB2UbrEhB-oCtRydFv-58\",\"produceId\":\"177573620431710.244.72.167euny7df441383\",\"sign\":\"dfweb\",\"configVersion\":\"2076310e2ee1490d8ff53ace04fd3de5\",\"time\":1775833777765,\"salt\":\"c9KHku+8GWZFCPBgnqJ+GA==\",\"batchSize\":100,\"bufferS\":1000}"
+        },
+        {
+          "name": "news_watch_id",
+          "value": "69ca76dc504fb37dd341c3a5"
+        },
+        {
+          "name": "49f290d6e8459c53f31f97de37921086",
+          "value": "{\"thirdPlatform\":\"EMAIL\",\"thirdId\":\"juney97631@outlook.com\",\"accountId\":\"68a3b8c822f83a0007403431\",\"userId\":\"7caa4de69876ded4c7ca033dd514663c\",\"token\":\"eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NzU4NjI2MDgsInBheWxvYWQiOnsiaWQiOiI2OGEzYjhjODIyZjgzYTAwMDc0MDM0MzEiLCJ0aGlyZFBsYXRmb3JtIjoiRU1BSUwiLCJ0aGlyZElkIjoianVuZXk5NzYzMUBvdXRsb29rLmNvbSIsInBhc3N3b3JkIjoiMDAwc2EwMDAiLCJ0aGlyZEV4dCI6eyJlbWFpbCI6Imp1bmV5OTc2MzFAb3V0bG9vay5jb20iLCJuYW1lIjpudWxsLCJnZW5kZXIiOm51bGwsImJpcnRoZGF5IjpudWxsLCJuaWNrTmFtZSI6bnVsbCwiZ2l2ZW5OYW1lIjpudWxsLCJmYW1pbHlOYW1lIjpudWxsLCJwcm9maWxlUGljdHVyZSI6bnVsbH0sImNyZWF0ZVRpbWUiOjE3NTU1NjAxMzYwMzQsInVwZGF0ZVRpbWVGb3JtYXQiOiIyMDI2LTA0LTEwIDIzOjA2OjE1LjYzMiIsImRlbGV0ZSI6bnVsbCwiY3JlYXRlVGltZUZvcm1hdCI6IjIwMjUtMDgtMTkgMDc6MzU6MzYuMDM0IiwidXBkYXRlVGltZSI6MTc3NTgzMzU3NTYzMiwicGxhdGZvcm1UeXBlIjoyLCJyZWdpc3RlclNvdXJjZSI6InNlbyIsIndvcmtQcml2YXRlTW9kZSI6MSwidGVhbUlkIjpudWxsLCJ0ZWFtUm9sZSI6bnVsbH19.69B8kXBL9AfVP4eZX_bqiXEajINd92prYS2nX5moA9U\",\"registerFlag\":false,\"countryCode\":\"py\",\"userRights\":{\"statusCode\":\"THS12140000000\",\"statusMsg\":\"Success\",\"extend\":{},\"vipLabel\":true,\"vipRemainderDay\":130,\"freeAnimateNum\":5,\"expiresDate\":1787101622000,\"expiresDateFormat\":\"2026-08-19 09:07:02\",\"haveTrial\":true,\"vipType\":\"YEAR_PACKAGE\",\"vipProductId\":\"96\",\"vipLevel\":\"normal\",\"autoPay\":true,\"tenantName\":\"dream_face\",\"platformType\":\"WEB\",\"paySource\":\"STRIPE\",\"repeatSubscribe\":false,\"renewal\":true,\"workPrivateMode\":1}}"
+        },
+        {
+          "name": "stopWeblogReport",
+          "value": "{\"webviewId\":\"714FDB8B075F7365\",\"hostname\":\"www.dreamfaceapp.com\",\"uuid\":\"29833AEE7D07CC40\"}"
+        },
+        {
+          "name": "activity_countdown_start_time",
+          "value": "1775833809420"
+        },
+        {
+          "name": "lastExternalReferrerTime",
+          "value": "1775833776738"
+        },
+        {
+          "name": "weblogList",
+          "value": "[]"
+        },
+        {
+          "name": "1d5d4096d2b4e7d671adcb4661b5725d",
+          "value": "7caa4de69876ded4c7ca033dd514663c"
+        },
+        {
+          "name": "news-dialog-open",
+          "value": "false"
+        },
+        {
+          "name": "activity_modal",
+          "value": "1775833813966"
+        },
+        {
+          "name": "_adjust_tmp_visit_key_",
+          "value": "{\"network\":\"Organic\",\"adid\":\"bea1d02b2eb5c470ec4d63113aca9059\",\"campaign\":\"\"}"
+        },
+        {
+          "name": "lastExternalReferrer",
+          "value": "empty"
+        },
+        {
+          "name": "adjust-sdk.p",
+          "value": "{}"
+        },
+        {
+          "name": "19fb90a3b8f09f14a91f48eee48c12af",
+          "value": "15457a1dc42ae0670c074e389d4d4e3f"
+        },
+        {
+          "name": "language",
+          "value": "pt"
+        }
+      ]
+    }
+  ]
+}

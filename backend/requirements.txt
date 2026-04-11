@@ -1,0 +1,47 @@
+# Core
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+python-multipart==0.0.18
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.1
+
+# Task queue
+celery[redis]==5.4.0
+redis==5.2.1
+
+# Object storage
+minio==7.2.15
+
+# HTTP / WebSockets
+httpx==0.28.1
+websockets==14.1
+
+# AI / LLM
+openai==1.57.4
+
+# Browser automation
+playwright==1.49.1
+
+# Auth & Security
+bcrypt==4.2.1
+python-jose[cryptography]==3.3.0
+cryptography==44.0.0
+
+# Media processing
+ffmpeg-python==0.2.0
+Pillow==11.1.0
+
+# Logging & Resilience
+loguru==0.7.3
+tenacity==9.0.0
+
+# --- Dev dependencies ---
+# pytest==8.3.4
+# pytest-asyncio==0.24.0
+# httpx==0.28.1

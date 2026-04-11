@@ -1,0 +1,222 @@
+import json
+import os
+import shutil
+import tempfile
+
+from app.automation.account_rotator import account_rotator
+from app.automation.grok import grok_automation
+from app.config import settings
+from app.database import async_session_factory
+from app.processing.asset_manager import asset_manager
+from app.processing.ffmpeg import ffmpeg_processor
+from app.services.minio_client import minio_client
+from app.services.scene_director import scene_director
+from app.services.whisper import whisper_client
+from app.utils.logger import logger
+
+
+async def process_brolls(
+    job_id: str,
+    tts_audio_minio_path: str,
+    script: str,
+    language: str,
+    db_session,
+    system_prompt_scene_director: str | None = None,
+    on_progress: callable = None,
+) -> dict:
+    """Stage 2 Track B: Generate B-Roll videos from scene analysis.
+
+    Flow:
+        1. Download TTS audio from MinIO
+        2. Transcribe with Whisper (word-level timestamps)
+        3. Scene Director LLM (semantic blocks + SFX + B-Roll prompts)
+        4. Get Grok account (round-robin)
+        5. Batch generate B-Rolls via Grok (batch_size tabs at a time)
+        6. Upload all B-Rolls to MinIO
+        7. Return structured data for Remotion
+
+    Args:
+        job_id: Unique job identifier.
+        tts_audio_minio_path: MinIO path to the TTS audio file.
+        script: The narration script text.
+        language: BCP-47 language tag (e.g. ``"pt-BR"``).
+        db_session: SQLAlchemy async session for account queries.
+        system_prompt_scene_director: Optional custom system prompt for
+            the Scene Director LLM.
+        on_progress: Optional callback for progress updates.
+
+    Returns:
+        Dict with:
+        - word_timestamps: list of {word, start, end}
+        - scenes: list of scene blocks with broll_prompts and sfx
+        - broll_paths: dict mapping scene_index -> MinIO path
+        - urgent_keywords: list of keywords for BREAKING NEWS banner
+        - total_duration: audio duration in seconds
+        - prompts_used: list of prompts sent to Grok
+    """
+    logger.info("[Track B] Starting B-Roll processing for job {jid}", jid=job_id)
+
+    tmp_dir = tempfile.mkdtemp(prefix=f"brolls_{job_id}_")
+    account = None
+
+    try:
+        # ── Step 1: Download TTS audio ────────────────────────────
+        if on_progress:
+            on_progress("Downloading TTS audio...")
+
+        audio_local = os.path.join(tmp_dir, "tts_audio.mp3")
+        audio_data = minio_client.download_file(tts_audio_minio_path)
+        with open(audio_local, "wb") as f:
+            f.write(audio_data)
+        logger.info(
+            "[Track B] Downloaded TTS audio: {size} bytes", size=len(audio_data)
+        )
+
+        # Get audio duration
+        total_duration = await ffmpeg_processor.get_duration(audio_local)
+        logger.info("[Track B] Audio duration: {dur:.1f}s", dur=total_duration)
+
+        # ── Step 2: Whisper transcription (word-level timestamps) ─
+        if on_progress:
+            on_progress("Transcribing with Whisper...")
+
+        word_timestamps = await whisper_client.transcribe_to_word_timestamps(
+            audio_local, language=language
+        )
+        logger.info(
+            "[Track B] Whisper: {n} words transcribed", n=len(word_timestamps)
+        )
+
+        # Persist timestamps to MinIO for debugging / downstream use
+        timestamps_json = json.dumps(word_timestamps, ensure_ascii=False, indent=2)
+        asset_manager.save_asset(
+            job_id,
+            "stage2_brolls",
+            "word_timestamps.json",
+            timestamps_json.encode(),
+            "application/json",
+        )
+
+        # ── Step 3: Scene Director (LLM) ─────────────────────────
+        if on_progress:
+            on_progress("Analyzing scenes with AI Director...")
+
+        scene_data = await scene_director.direct_scenes(
+            script=script,
+            word_timestamps=word_timestamps,
+            total_duration=total_duration,
+            system_prompt=system_prompt_scene_director,
+            broll_duration=settings.BROLL_DURATION_SECONDS,
+        )
+
+        scenes = scene_data.get("scenes", [])
+        urgent_keywords = scene_data.get("urgent_keywords", [])
+        logger.info(
+            "[Track B] Scene Director: {ns} scenes, {nk} keywords",
+            ns=len(scenes),
+            nk=len(urgent_keywords),
+        )
+
+        # Persist scene data
+        scene_json = json.dumps(scene_data, ensure_ascii=False, indent=2)
+        asset_manager.save_asset(
+            job_id,
+            "stage2_brolls",
+            "scenes.json",
+            scene_json.encode(),
+            "application/json",
+        )
+
+        # ── Step 4: Extract B-Roll prompts ────────────────────────
+        prompts = [
+            scene.get("broll_prompt", "")
+            for scene in scenes
+            if scene.get("broll_prompt")
+        ]
+
+        if not prompts:
+            raise RuntimeError("[Track B] No B-Roll prompts generated by Scene Director")
+
+        # Limit to configured max
+        max_brolls = min(len(prompts), settings.BROLL_COUNT)
+        prompts = prompts[:max_brolls]
+        logger.info(
+            "[Track B] Will generate {n} B-Roll videos", n=len(prompts)
+        )
+
+        # ── Step 5: Get Grok account (fresh DB session) ────────
+        async with async_session_factory() as fresh_db:
+            account = await account_rotator.get_next_account("grok", fresh_db)
+            if not account:
+                raise RuntimeError("No active Grok accounts available")
+            cookies = await account_rotator.get_account_cookies(account)
+            proxy = await account_rotator.get_account_proxy(account)
+        logger.info(
+            "[Track B] Using Grok account: {name}", name=account.account_name
+        )
+
+        # ── Step 6: Batch generate via Grok ──────────────────────
+        if on_progress:
+            on_progress(f"Generating {len(prompts)} B-Rolls with Grok...")
+
+        def _grok_progress(done: int, total: int, msg: str) -> None:
+            if on_progress:
+                on_progress(f"B-Rolls: {done}/{total} - {msg}")
+
+        broll_local_paths = await grok_automation.batch_generate(
+            prompts=prompts,
+            account_id=str(account.id),
+            cookies=cookies,
+            proxy=proxy,
+            batch_size=settings.BROLL_BATCH_SIZE,
+            max_retries=2,
+            timeout_per_video=300,
+            on_progress=_grok_progress,
+        )
+
+        # Mark account as successfully used
+        await account_rotator.mark_account_used(account, db_session, success=True)
+
+        # ── Step 7: Upload B-Rolls to MinIO ──────────────────────
+        if on_progress:
+            on_progress("Uploading B-Rolls to storage...")
+
+        broll_minio_paths: dict[int, str] = {}
+        for idx, local_path in broll_local_paths.items():
+            if local_path and os.path.exists(local_path):
+                filename = f"broll_{idx:02d}.mp4"
+                minio_path = asset_manager.save_asset_from_file(
+                    job_id, "stage2_brolls", filename, local_path, "video/mp4"
+                )
+                broll_minio_paths[idx] = minio_path
+
+        logger.success(
+            "[Track B] Complete: {ok}/{total} B-Rolls uploaded",
+            ok=len(broll_minio_paths),
+            total=len(prompts),
+        )
+
+        return {
+            "word_timestamps": word_timestamps,
+            "scenes": scenes,
+            "broll_paths": broll_minio_paths,
+            "urgent_keywords": urgent_keywords,
+            "total_duration": total_duration,
+            "prompts_used": prompts,
+        }
+
+    except Exception as e:
+        # Mark account as failed if we got one
+        if account is not None:
+            try:
+                await account_rotator.mark_account_used(
+                    account, db_session, success=False, error_message=str(e)
+                )
+            except Exception:
+                pass
+        logger.error("[Track B] B-Roll processing failed: {err}", err=e)
+        raise
+
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        logger.debug("[Track B] Cleaned up temp dir: {tmp}", tmp=tmp_dir)

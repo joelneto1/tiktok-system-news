@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "news-tiktok-backend"
+version = "0.1.0"
+description = "System News TikTok — automated news video pipeline"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "celery[redis]>=5.4.0",
+    "redis>=5.2.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "minio>=7.2.12",
+    "playwright>=1.49.0",
+    "httpx>=0.28.0",
+    "openai>=1.57.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.0.1",
+    "loguru>=0.7.3",
+    "tenacity>=9.0.0",
+    "websockets>=14.1",
+    "python-multipart>=0.0.18",
+    "bcrypt>=4.2.0",
+    "python-jose[cryptography]>=3.3.0",
+    "cryptography>=44.0.0",
+    "ffmpeg-python>=0.2.0",
+    "Pillow>=11.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
