@@ -1,7 +1,10 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.config import settings
@@ -42,3 +45,22 @@ app.include_router(api_router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Serve frontend SPA ──────────────────────────────────────────
+_frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+_frontend_dist = os.path.normpath(_frontend_dist)
+
+if os.path.isdir(_frontend_dist):
+    app.mount(
+        "/assets",
+        StaticFiles(directory=os.path.join(_frontend_dist, "assets")),
+        name="static-assets",
+    )
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = os.path.join(_frontend_dist, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(_frontend_dist, "index.html"))
