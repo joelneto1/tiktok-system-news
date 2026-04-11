@@ -61,7 +61,14 @@ class BrowserPool:
         ctx = await browser.new_context(**ctx_options)
 
         if cookies:
-            await ctx.add_cookies(cookies)
+            # Only add as browser cookies if they have valid cookie fields (domain, name, value)
+            valid_cookies = [
+                c for c in cookies
+                if isinstance(c, dict) and "domain" in c and "name" in c and "value" in c
+            ]
+            if valid_cookies:
+                await ctx.add_cookies(valid_cookies)
+                logger.debug(f"Injected {len(valid_cookies)} browser cookies")
             logger.debug(f"Injected {len(cookies)} cookies for account {account_id}")
 
         return pw, browser, ctx

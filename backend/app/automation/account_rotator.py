@@ -72,11 +72,23 @@ class AccountRotator:
                 logger.error(f"Failed to decrypt cookies for {account.account_name}: {e}")
                 return []
 
-        # Try JSON array format first (Playwright cookie format)
+        # Try JSON format
         try:
-            cookies = json.loads(raw)
-            if isinstance(cookies, list):
-                return cookies
+            parsed = json.loads(raw)
+
+            # JSON array = Playwright cookie format
+            if isinstance(parsed, list):
+                return parsed
+
+            # JSON object = localStorage format (DreamFace uses this)
+            if isinstance(parsed, dict):
+                # Convert to list of {name, value} items for localStorage injection
+                items = [
+                    {"name": k, "value": v if isinstance(v, str) else json.dumps(v)}
+                    for k, v in parsed.items()
+                ]
+                logger.debug(f"Parsed {len(items)} localStorage items for {account.account_name}")
+                return items
         except json.JSONDecodeError:
             pass
 
