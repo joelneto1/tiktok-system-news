@@ -64,8 +64,9 @@ async def process_avatar(
 
     try:
         # Step 2: Download assets from MinIO
-        ref_local = os.path.join(tmp_dir, "reference.mp4")
-        audio_local = os.path.join(tmp_dir, "tts_audio.mp3")
+        short_id = job_id[:8]
+        ref_local = os.path.join(tmp_dir, f"avatar_ref_{short_id}.mp4")
+        audio_local = os.path.join(tmp_dir, f"news_{short_id}.mp3")
 
         ref_data = minio_client.download_file(reference_minio_path)
         with open(ref_local, "wb") as f:

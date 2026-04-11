@@ -354,19 +354,28 @@ class DreamFaceAutomation:
         """
         self.logger.info("DreamFace: Downloading result...")
 
-        # Click on the first card's operate button (most recent creation)
-        try:
-            first_card = page.locator("._operate_1jvc3_1").first
-            await first_card.click()
-            await page.wait_for_timeout(2000)
-        except Exception:
-            # Fallback: click on the first thumbnail image
+        # Click on the first card (most recent creation)
+        clicked = False
+        for selector in [
+            "._operate_1jvc3_1",  # Original operate button
+            "[class*='operate']",  # Any operate class
+            "[class*='card'] img",  # Card image
+            "[class*='item'] img",  # Item image
+            "video",  # Direct video element
+        ]:
             try:
-                first_thumb = page.locator("img").first
-                await first_thumb.click()
-                await page.wait_for_timeout(2000)
-            except Exception as e:
-                raise RuntimeError(f"DreamFace: Could not click on result card: {e}")
+                el = page.locator(selector).first
+                if await el.is_visible(timeout=3000):
+                    await el.click()
+                    await page.wait_for_timeout(2000)
+                    clicked = True
+                    self.logger.info(f"DreamFace: Clicked result with selector: {selector}")
+                    break
+            except Exception:
+                continue
+
+        if not clicked:
+            raise RuntimeError("DreamFace: Could not find result card to click")
 
         # Download via "Baixar" button with expect_download
         output_path = tempfile.mktemp(suffix=".mp4")
