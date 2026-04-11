@@ -175,7 +175,7 @@ async def process_brolls(
         )
 
         # Mark account as successfully used
-        await account_rotator.mark_account_used(account, db_session, success=True)
+        await account_rotator.mark_account_used(account, success=True)
 
         # ── Step 7: Upload B-Rolls to MinIO ──────────────────────
         if on_progress:
@@ -210,7 +210,7 @@ async def process_brolls(
         if account is not None:
             try:
                 await account_rotator.mark_account_used(
-                    account, db_session, success=False, error_message=str(e)
+                    account, success=False, error_message=str(e)
                 )
             except Exception:
                 pass

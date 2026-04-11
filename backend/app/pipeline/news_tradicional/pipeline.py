@@ -104,17 +104,98 @@ class NewsTradicionalPipeline(BasePipeline):
                 )
 
         # ── STAGE 2: PARALLEL FORK ───────────────────────────────────
-        if on_stage_update:
-            await on_stage_update(
-                "stage2_avatar", "in_progress", "Processing avatar (DreamFace)..."
+        avatar_data: dict | None = None
+        broll_data: dict | None = None
+
+        # ── Resume check: Avatar ──
+        existing_avatar_raw = asset_manager.try_get_asset_path(
+            self.job_id, "stage2_avatar", "avatar_raw.mp4"
+        )
+        existing_avatar_webm = asset_manager.try_get_asset_path(
+            self.job_id, "stage2_avatar", "avatar_alpha.webm"
+        )
+
+        if existing_avatar_raw and existing_avatar_webm:
+            self.logger.info(
+                "Resuming: avatar already exists in MinIO, skipping DreamFace"
             )
+            # Reconstruct avatar_data from existing assets
+            from app.processing.ffmpeg import ffmpeg_processor
+            import tempfile, os
+            # Download webm to get duration
+            try:
+                webm_data = minio_client.download_file(existing_avatar_webm)
+                tmp_webm = tempfile.mktemp(suffix=".webm")
+                with open(tmp_webm, "wb") as f:
+                    f.write(webm_data)
+                duration = await ffmpeg_processor.get_duration(tmp_webm)
+                os.unlink(tmp_webm)
+            except Exception:
+                duration = 60.0  # fallback
+            avatar_data = {
+                "avatar_minio_path": existing_avatar_webm,
+                "avatar_raw_path": existing_avatar_raw,
+                "duration": duration,
+            }
+            if on_stage_update:
+                await on_stage_update(
+                    "stage2_avatar", "completed", "Avatar resumed from MinIO"
+                )
+
+        # ── Resume check: B-Rolls ──
+        existing_scenes_json = asset_manager.try_download_text(
+            self.job_id, "stage2_brolls", "scenes.json"
+        )
+        if existing_scenes_json:
+            import json
+            try:
+                scene_data = json.loads(existing_scenes_json)
+                scenes = scene_data.get("scenes", [])
+                # Check if actual broll video files exist
+                broll_paths = {}
+                for idx in range(len(scenes)):
+                    bp = asset_manager.try_get_asset_path(
+                        self.job_id, "stage2_brolls", f"broll_{idx:02d}.mp4"
+                    )
+                    if bp:
+                        broll_paths[idx] = bp
+                if broll_paths:
+                    self.logger.info(
+                        "Resuming: {n}/{t} B-Rolls already in MinIO",
+                        n=len(broll_paths), t=len(scenes),
+                    )
+            except Exception:
+                broll_paths = {}
+                scene_data = None
+        else:
+            broll_paths = {}
+            scene_data = None
+
+        # Determine what still needs to run
+        need_avatar = avatar_data is None and reference_minio_path
+        need_brolls = not broll_paths  # No existing brolls found
+
+        if need_avatar:
+            if on_stage_update:
+                await on_stage_update(
+                    "stage2_avatar", "in_progress", "Processing avatar (DreamFace)..."
+                )
+        if need_brolls:
+            if on_stage_update:
+                await on_stage_update(
+                    "stage2_brolls", "in_progress", "Generating B-Rolls (Grok)..."
+                )
+        elif on_stage_update:
             await on_stage_update(
-                "stage2_brolls", "in_progress", "Generating B-Rolls (Grok)..."
+                "stage2_brolls", "completed",
+                f"B-Rolls resumed: {len(broll_paths)} from MinIO"
             )
 
-        # Track A: Avatar (only when a reference video is available)
+        # Launch only the tracks that are needed
         track_a_task = None
-        if reference_minio_path:
+        track_b_task = None
+
+        if need_avatar:
             track_a_task = asyncio.create_task(
                 self._run_track_a(
                     reference_minio_path, audio_path, topic,
@@ -122,51 +203,87 @@ class NewsTradicionalPipeline(BasePipeline):
                 )
             )
 
-        # Track B: B-Rolls (always runs)
-        track_b_task = asyncio.create_task(
-            self._run_track_b(
-                audio_path, script, language,
-                db_session, system_prompts, on_stage_update,
+        if need_brolls:
+            track_b_task = asyncio.create_task(
+                self._run_track_b(
+                    audio_path, script, language,
+                    db_session, system_prompts, on_stage_update,
+                )
             )
-        )
 
-        # Await both tracks (gather with return_exceptions for graceful handling)
-        avatar_data: dict | None = None
-        broll_data: dict | None = None
-
+        # Await whatever is running
+        tasks = {}
         if track_a_task:
+            tasks["avatar"] = track_a_task
+        if track_b_task:
+            tasks["brolls"] = track_b_task
+
+        if tasks:
             results = await asyncio.gather(
-                track_a_task, track_b_task, return_exceptions=True
+                *tasks.values(), return_exceptions=True
             )
+            task_keys = list(tasks.keys())
 
-            # Track A result
-            if isinstance(results[0], BaseException):
-                self.logger.warning(
-                    "Track A (Avatar) failed: {err}. Video will render without avatar.",
-                    err=results[0],
-                )
-                if on_stage_update:
-                    await on_stage_update(
-                        "stage2_avatar", "failed", str(results[0])[:200]
-                    )
-            else:
-                avatar_data = results[0]
+            for i, key in enumerate(task_keys):
+                if isinstance(results[i], BaseException):
+                    if key == "avatar":
+                        self.logger.warning(
+                            "Track A (Avatar) failed: {err}.",
+                            err=results[i],
+                        )
+                        if on_stage_update:
+                            await on_stage_update(
+                                "stage2_avatar", "failed", str(results[i])[:200]
+                            )
+                    elif key == "brolls":
+                        self.logger.error(
+                            "Track B (B-Rolls) failed: {err}", err=results[i]
+                        )
+                        if on_stage_update:
+                            await on_stage_update(
+                                "stage2_brolls", "failed", str(results[i])[:200]
+                            )
+                        raise results[i]
+                else:
+                    if key == "avatar":
+                        avatar_data = results[i]
+                    elif key == "brolls":
+                        broll_data = results[i]
 
-            # Track B result -- B-Rolls are required
-            if isinstance(results[1], BaseException):
-                self.logger.error(
-                    "Track B (B-Rolls) failed: {err}", err=results[1]
-                )
-                if on_stage_update:
-                    await on_stage_update(
-                        "stage2_brolls", "failed", str(results[1])[:200]
-                    )
-                raise results[1]
-            else:
-                broll_data = results[1]
-        else:
-            # No avatar requested -- just run B-Rolls
-            broll_data = await track_b_task
+        # If B-Rolls were resumed, reconstruct broll_data
+        if broll_data is None and broll_paths and scene_data:
+            # Load word_timestamps
+            existing_ts = asset_manager.try_download_text(
+                self.job_id, "stage2_brolls", "word_timestamps.json"
+            )
+            import json
+            word_timestamps = json.loads(existing_ts) if existing_ts else []
+
+            # Get audio duration
+            from app.processing.ffmpeg import ffmpeg_processor
+            import tempfile, os
+            try:
+                audio_data = minio_client.download_file(audio_path)
+                tmp_audio = tempfile.mktemp(suffix=".mp3")
+                with open(tmp_audio, "wb") as f:
+                    f.write(audio_data)
+                total_dur = await ffmpeg_processor.get_duration(tmp_audio)
+                os.unlink(tmp_audio)
+            except Exception:
+                total_dur = 60.0
+
+            broll_data = {
+                "word_timestamps": word_timestamps,
+                "scenes": scene_data.get("scenes", []),
+                "broll_paths": broll_paths,
+                "urgent_keywords": scene_data.get("urgent_keywords", []),
+                "total_duration": total_dur,
+                "prompts_used": [
+                    s.get("broll_prompt", "") for s in scene_data.get("scenes", [])
+                ],
+            }
+
+        if not reference_minio_path and avatar_data is None:
             if on_stage_update:
                 await on_stage_update(
                     "stage2_avatar", "completed", "Skipped (no reference)"
