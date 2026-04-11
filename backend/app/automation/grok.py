@@ -144,6 +144,9 @@ class GrokAutomation:
                     await page.goto(self.IMAGINE_URL, wait_until="domcontentloaded", timeout=20000)
                     await page.wait_for_timeout(2000)
 
+                    # Dismiss cookie banner (blocks submit button)
+                    await self._dismiss_cookie_banner(page)
+
                     # Configure: Video mode, 720p, 9:16
                     await self._configure_video_settings(page)
 
@@ -187,6 +190,14 @@ class GrokAutomation:
             await browser_pool.release(pw, browser, ctx)
 
         return results
+
+    async def _dismiss_cookie_banner(self, page: Page):
+        """Remove cookie consent banner that blocks the submit button."""
+        try:
+            await page.evaluate('document.querySelector("[data-cookie-banner]")?.remove()')
+            self.logger.debug("Grok: Cookie banner removed")
+        except Exception:
+            pass
 
     async def _configure_video_settings(self, page: Page):
         """Configure Grok for video generation: Video mode, 720p, 9:16 aspect."""
