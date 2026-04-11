@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { loginApi, registerApi, getMeApi } from '@/api/auth'
+import { loginApi, registerApi } from '@/api/auth'
 
 export interface User {
   id: string

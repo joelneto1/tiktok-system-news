@@ -109,7 +109,9 @@
       "Bash(npx remotion:*)",
       "Bash(.venv/Scripts/python.exe -c \"from app.config import settings; print\\('OPENROUTER_API_KEY:', settings.OPENROUTER_API_KEY[:10] + '...' if settings.OPENROUTER_API_KEY else 'EMPTY'\\)\")",
       "Bash(.venv/Scripts/python.exe -c \"from app.config import settings; print\\('OPENROUTER:', settings.OPENROUTER_API_KEY[:10] + '...' if settings.OPENROUTER_API_KEY else 'EMPTY'\\); print\\('GENAIPRO:', settings.GENAIPRO_API_KEY[:10] + '...' if settings.GENAIPRO_API_KEY else 'EMPTY'\\); print\\('OPENAI:', settings.OPENAI_API_KEY[:10] + '...' if settings.OPENAI_API_KEY else 'EMPTY'\\)\")",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
     ]
   }
 }

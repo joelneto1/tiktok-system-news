@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
-import { Upload, Film, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { useRef, useState, useEffect } from 'react'
+import { Upload, Film, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReferenceGallery, { type ReferenceFile } from './ReferenceGallery'
 import {

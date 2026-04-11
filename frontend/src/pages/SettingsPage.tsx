@@ -147,7 +147,7 @@ function SectionCard({ icon: Icon, title, subtitle, accentColor, children, onSav
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [_saving, setSaving] = useState(false)
 
   // Per-card save state
   const [cardSaving, setCardSaving] = useState<Record<string, boolean>>({})
@@ -231,7 +231,7 @@ export default function SettingsPage() {
     async function load() {
       try {
         const resp = await listSettings()
-        const settings = Array.isArray(resp) ? resp : resp.settings || []
+        const settings = Array.isArray(resp) ? resp : (resp as any).settings || []
         for (const setting of settings) {
           const setter = SETTING_MAP[setting.key]
           if (setter && setting.value) setter(setting.value)
@@ -285,7 +285,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleSave() {
+  async function _handleSave() {
     setSaving(true)
     try {
       await bulkUpdateSettings({

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Play, ListPlus, Globe, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import TopicInput from './TopicInput'

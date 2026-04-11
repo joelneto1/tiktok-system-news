@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Music, Upload, Trash2, Play, Pause, Download, Pencil, Check, X, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react'
+import { Music, Upload, Trash2, Play, Pause, Download, Pencil, Check, X, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { uploadAudio, listAudios, deleteAudio as deleteAudioApi, renameAudio as renameAudioApi, getAudioDownloadUrl } from '@/api/audios'
 
