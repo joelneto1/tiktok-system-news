@@ -354,14 +354,14 @@ class DreamFaceAutomation:
         """
         self.logger.info("DreamFace: Downloading result...")
 
-        # Click on the first card (most recent creation)
+        # Click on the first creation result (most recent)
         clicked = False
         for selector in [
+            "[class*='creationList'] img.lazyloaded",  # Creation list image
+            "[class*='creationList'] img",  # Any image in creation list
+            "[class*='creation'] img",  # Image in creation container
+            "img.lazyloaded",  # Any lazy loaded image
             "._operate_1jvc3_1",  # Original operate button
-            "[class*='operate']",  # Any operate class
-            "[class*='card'] img",  # Card image
-            "[class*='item'] img",  # Item image
-            "video",  # Direct video element
         ]:
             try:
                 el = page.locator(selector).first
