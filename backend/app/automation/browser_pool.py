@@ -33,14 +33,25 @@ class BrowserPool:
         pw = await async_playwright().start()
 
         cdp_url = settings.CDP_URL
-        try:
-            browser = await pw.chromium.connect_over_cdp(cdp_url)
-            logger.info(f"Connected to browser via CDP: {cdp_url}")
-        except Exception as e:
-            logger.warning(f"CDP connection failed ({e}), launching local browser")
+        browser = None
+
+        if cdp_url:
+            try:
+                browser = await pw.chromium.connect_over_cdp(cdp_url, timeout=5000)
+                logger.info(f"Connected to browser via CDP: {cdp_url}")
+            except Exception as e:
+                logger.warning(f"CDP connection failed ({e}), falling back to headless")
+                browser = None
+
+        if browser is None:
             browser = await pw.chromium.launch(
                 headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"],
+                args=[
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--single-process",
+                ],
             )
             logger.info("Launched local headless Chromium")
 
