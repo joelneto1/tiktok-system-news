@@ -12,6 +12,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - coolify-db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -32,6 +35,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - coolify-db
     restart: unless-stopped
 
   redis:
@@ -44,6 +50,11 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+networks:
+  coolify-db:
+    external: true
+    name: lcog0wgcwsws0okwoc8kck4s_coolify-network
 
 volumes:
   redis-data:
