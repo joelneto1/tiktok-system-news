@@ -71,11 +71,20 @@ class DreamFaceAutomation:
         try:
             self.logger.info("DreamFace: Starting avatar generation")
 
-            # Step 1: Navigate to avatar page
+            # Step 1: Navigate to DreamFace domain first (needed to set localStorage)
             if on_progress:
                 on_progress("Navigating to DreamFace...")
+
+            # Go to a simple page first to set localStorage for auth
+            await page.goto("https://www.dreamfaceapp.com/", wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_timeout(1000)
+
+            # Inject localStorage auth data from cookies (which contain localStorage JSON)
+            await self._inject_local_storage(page, cookies)
+
+            # Now navigate to avatar page with auth
             await page.goto(self.BASE_URL, wait_until="networkidle", timeout=30000)
-            await page.wait_for_timeout(2000)
+            await page.wait_for_timeout(3000)
 
             # Step 2: Accept cookies banner (if shown)
             await self._accept_cookies(page)
@@ -122,6 +131,28 @@ class DreamFaceAutomation:
             raise
         finally:
             await browser_pool.release(pw, browser, ctx)
+
+    async def _inject_local_storage(self, page: Page, cookies: list[dict]):
+        """Inject localStorage auth data for DreamFace.
+
+        The 'cookies' parameter actually contains localStorage key-value pairs
+        parsed from the stored JSON string format.
+        """
+        try:
+            # cookies is a list of dicts with name/value from cookie string parsing
+            # or could be the raw localStorage JSON
+            for item in cookies:
+                if isinstance(item, dict) and "name" in item and "value" in item:
+                    name = item["name"]
+                    value = item["value"]
+                    # Skip GA/analytics cookies, only inject auth-related items
+                    await page.evaluate(
+                        f"localStorage.setItem({repr(name)}, {repr(value)})"
+                    )
+
+            self.logger.info(f"DreamFace: Injected {len(cookies)} localStorage items")
+        except Exception as e:
+            self.logger.warning(f"DreamFace: Failed to inject localStorage: {e}")
 
     async def _accept_cookies(self, page: Page):
         """Accept cookie banner if present."""
