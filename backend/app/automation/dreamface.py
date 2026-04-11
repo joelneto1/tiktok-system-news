@@ -184,15 +184,6 @@ class DreamFaceAutomation:
         """
         self.logger.info(f"DreamFace: Uploading reference video: {video_path}")
 
-        # Close any initial popup/modal
-        try:
-            close_btn = page.get_by_role("button").first
-            if await close_btn.is_visible(timeout=2000):
-                await close_btn.click()
-                await page.wait_for_timeout(500)
-        except (PlaywrightTimeout, Exception):
-            pass
-
         # Click "Fotos/Videos" tab
         try:
             photos_tab = page.locator("div").filter(
