@@ -26,8 +26,14 @@ COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt \
     && pip install --no-cache-dir email-validator
 
-# Install Playwright browsers
-RUN playwright install chromium --with-deps
+# Install Playwright browsers (chromium + deps)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+    libgbm1 libpango-1.0-0 libasound2 libatspi2.0-0 libwayland-client0 \
+    xvfb fonts-liberation fonts-noto-color-emoji \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && playwright install chromium
 
 # Install Remotion dependencies
 COPY remotion/package.json remotion/package-lock.json ./remotion/
