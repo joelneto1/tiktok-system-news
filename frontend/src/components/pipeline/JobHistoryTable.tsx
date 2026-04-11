@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   RefreshCw,
@@ -9,9 +9,12 @@ import {
   CheckCircle2,
   XCircle,
   CircleDot,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { listVideos, getVideoDownloadUrl } from '@/api/videos'
+import { listVideos, getVideoDownloadUrl, deleteVideo } from '@/api/videos'
+import { retryPipeline } from '@/api/pipeline'
 
 type JobStatus = 'COMPLETED' | 'PROCESSING' | 'QUEUED' | 'FAILED'
 
@@ -96,6 +99,9 @@ function ModelBadge({ model }: { model: string }) {
   )
 }
 
+const ACTION_BTN =
+  'flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+
 interface JobHistoryTableProps {
   className?: string
 }
@@ -105,6 +111,8 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
   const [jobs, setJobs] = useState<Job[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -120,14 +128,39 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
       }))
       setJobs(mapped)
     } catch {
-      // API not available — show empty state
       setJobs([])
     }
   }, [])
 
+  // Initial fetch
   useEffect(() => {
     fetchJobs().finally(() => setIsLoading(false))
   }, [fetchJobs])
+
+  // Auto-refresh when there are active jobs
+  useEffect(() => {
+    const hasActiveJobs = jobs.some(
+      (j) => j.status === 'PROCESSING' || j.status === 'QUEUED',
+    )
+
+    if (hasActiveJobs) {
+      if (!intervalRef.current) {
+        intervalRef.current = setInterval(fetchJobs, 5000)
+      }
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [jobs, fetchJobs])
 
   async function handleRefresh() {
     setIsRefreshing(true)
@@ -137,6 +170,33 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
 
   function handleDownload(jobId: string) {
     window.open(getVideoDownloadUrl(jobId), '_blank')
+  }
+
+  async function handleRetry(jobId: string) {
+    setActionLoading((prev) => ({ ...prev, [jobId]: true }))
+    try {
+      await retryPipeline(jobId)
+      await fetchJobs()
+    } catch {
+      // silently fail — user will see status unchanged
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [jobId]: false }))
+    }
+  }
+
+  async function handleDelete(jobId: string) {
+    const confirmed = window.confirm('Tem certeza que deseja remover este job da fila?')
+    if (!confirmed) return
+
+    setActionLoading((prev) => ({ ...prev, [jobId]: true }))
+    try {
+      await deleteVideo(jobId)
+      await fetchJobs()
+    } catch {
+      // silently fail
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [jobId]: false }))
+    }
   }
 
   function formatDate(iso: string) {
@@ -251,23 +311,77 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
                   {/* Actions */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-md bg-background border border-border text-text-secondary hover:text-text-primary hover:border-text-secondary/30 transition-colors"
-                        title="Ver script"
-                      >
-                        <FileText className="w-3 h-3" />
-                        Script
-                      </button>
+                      {/* Script — all statuses except QUEUED */}
+                      {job.status !== 'QUEUED' && (
+                        <button
+                          type="button"
+                          className={cn(
+                            ACTION_BTN,
+                            'bg-background border border-border text-text-secondary hover:text-text-primary hover:border-text-secondary/30',
+                          )}
+                          title="Ver script"
+                        >
+                          <FileText className="w-3 h-3" />
+                          Script
+                        </button>
+                      )}
+
+                      {/* Download — COMPLETED only */}
                       {job.status === 'COMPLETED' && (
                         <button
                           type="button"
                           onClick={() => handleDownload(job.id)}
-                          className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-md bg-error/10 border border-error/20 text-error hover:bg-error/20 transition-colors"
+                          className={cn(
+                            ACTION_BTN,
+                            'bg-success/10 border border-success/20 text-success hover:bg-success/20',
+                          )}
                           title="Download video"
                         >
                           <Download className="w-3 h-3" />
                           Download
+                        </button>
+                      )}
+
+                      {/* Processing indicator */}
+                      {job.status === 'PROCESSING' && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 text-accent">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        </span>
+                      )}
+
+                      {/* Retry — FAILED only */}
+                      {job.status === 'FAILED' && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetry(job.id)}
+                          disabled={actionLoading[job.id]}
+                          className={cn(
+                            ACTION_BTN,
+                            'bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20',
+                          )}
+                          title="Tentar novamente"
+                        >
+                          <RotateCcw
+                            className={cn('w-3 h-3', actionLoading[job.id] && 'animate-spin')}
+                          />
+                          Retomar
+                        </button>
+                      )}
+
+                      {/* Delete — QUEUED only */}
+                      {job.status === 'QUEUED' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(job.id)}
+                          disabled={actionLoading[job.id]}
+                          className={cn(
+                            ACTION_BTN,
+                            'bg-error/10 border border-error/20 text-error hover:bg-error/20',
+                          )}
+                          title="Remover da fila"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Remover
                         </button>
                       )}
                     </div>

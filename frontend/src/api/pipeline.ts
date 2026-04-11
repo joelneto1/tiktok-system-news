@@ -37,3 +37,7 @@ export async function getPipelineStatus(videoId: string): Promise<PipelineStatus
   const { data } = await apiClient.get<PipelineStatus>(`/pipeline/status/${videoId}`)
   return data
 }
+
+export async function retryPipeline(videoId: string): Promise<void> {
+  await apiClient.post(`/pipeline/${videoId}/retry`)
+}
