@@ -135,22 +135,22 @@ class DreamFaceAutomation:
     async def _inject_local_storage(self, page: Page, cookies: list[dict]):
         """Inject localStorage auth data for DreamFace.
 
-        The 'cookies' parameter actually contains localStorage key-value pairs
-        parsed from the stored JSON string format.
+        The 'cookies' parameter contains localStorage key-value pairs
+        as list of {name, value} dicts.
         """
+        import json as _json
+        count = 0
         try:
-            # cookies is a list of dicts with name/value from cookie string parsing
-            # or could be the raw localStorage JSON
             for item in cookies:
                 if isinstance(item, dict) and "name" in item and "value" in item:
                     name = item["name"]
                     value = item["value"]
-                    # Skip GA/analytics cookies, only inject auth-related items
                     await page.evaluate(
-                        f"localStorage.setItem({repr(name)}, {repr(value)})"
+                        f'localStorage.setItem({_json.dumps(name)}, {_json.dumps(value)})'
                     )
+                    count += 1
 
-            self.logger.info(f"DreamFace: Injected {len(cookies)} localStorage items")
+            self.logger.info(f"DreamFace: Injected {count} localStorage items")
         except Exception as e:
             self.logger.warning(f"DreamFace: Failed to inject localStorage: {e}")
 
