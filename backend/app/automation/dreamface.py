@@ -215,9 +215,15 @@ class DreamFaceAutomation:
         except Exception:
             pass
 
-        # Upload file via hidden input (bypasses file picker)
-        await page.locator("body").set_input_files(video_path)
-        self.logger.info("DreamFace: Reference video file set")
+        # Upload file via hidden file input (bypasses file picker)
+        file_inputs = await page.query_selector_all('input[type="file"]')
+        if file_inputs:
+            await file_inputs[0].set_input_files(video_path)
+            self.logger.info("DreamFace: Reference video file set via input[type=file]")
+        else:
+            # Fallback: try setting on body
+            await page.locator("body").set_input_files(video_path)
+            self.logger.info("DreamFace: Reference video file set via body")
         await page.wait_for_timeout(3000)
 
         # Select the uploaded video (first thumbnail with class _imgStyle_m7pad_15)
@@ -259,9 +265,14 @@ class DreamFaceAutomation:
         except (PlaywrightTimeout, Exception):
             pass
 
-        # Upload file via hidden input (bypasses file picker)
-        await page.locator("body").set_input_files(audio_path)
-        self.logger.info("DreamFace: Audio file set")
+        # Upload file via hidden file input (bypasses file picker)
+        file_inputs = await page.query_selector_all('input[type="file"]')
+        if file_inputs:
+            await file_inputs[-1].set_input_files(audio_path)
+            self.logger.info("DreamFace: Audio file set via input[type=file]")
+        else:
+            await page.locator("body").set_input_files(audio_path)
+            self.logger.info("DreamFace: Audio file set via body")
         await page.wait_for_timeout(3000)
 
     async def _click_generate(self, page: Page) -> Page:
