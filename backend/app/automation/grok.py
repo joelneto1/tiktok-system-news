@@ -65,8 +65,8 @@ class GrokAutomation:
         Returns:
             Dict mapping prompt_index → local_file_path for successful generations
         """
-        if batch_size is None:
-            batch_size = getattr(settings, 'BROLL_BATCH_SIZE', 10)
+        # Open all tabs at once — no batching
+        batch_size = len(prompts)
 
         total = len(prompts)
         results: dict[int, str] = {}
