@@ -354,27 +354,24 @@ class DreamFaceAutomation:
         """
         self.logger.info("DreamFace: Downloading result...")
 
-        # Click on the first creation result (most recent)
-        # The _operate div overlays the image, so click it directly
-        clicked = False
-        for selector in [
-            "._operate_1jvc3_1",  # Operate overlay (intercepts clicks on images)
-            "[class*='operate']",  # Any operate class
-            "[class*='creationList'] img.lazyloaded",  # Creation list image
-            "img.lazyloaded",  # Any lazy loaded image
-        ]:
-            try:
-                el = page.locator(selector).first
-                if await el.is_visible(timeout=3000):
-                    await el.click()
-                    await page.wait_for_timeout(2000)
-                    clicked = True
-                    self.logger.info(f"DreamFace: Clicked result with selector: {selector}")
-                    break
-            except Exception:
-                continue
+        # Click on the first creation result via JavaScript (avoids overlay interception)
+        clicked = await page.evaluate('''() => {
+            // Try clicking the operate overlay directly
+            const operate = document.querySelector('._operate_1jvc3_1');
+            if (operate) { operate.click(); return 'operate'; }
+            // Try clicking first creation image
+            const img = document.querySelector('[class*="creationList"] img');
+            if (img) { img.click(); return 'img'; }
+            // Try any lazyloaded image
+            const lazy = document.querySelector('img.lazyloaded');
+            if (lazy) { lazy.click(); return 'lazy'; }
+            return null;
+        }''')
 
-        if not clicked:
+        if clicked:
+            self.logger.info(f"DreamFace: Clicked result via JS: {clicked}")
+            await page.wait_for_timeout(2000)
+        else:
             raise RuntimeError("DreamFace: Could not find result card to click")
 
         # Download via "Baixar" button with expect_download
