@@ -355,13 +355,13 @@ class DreamFaceAutomation:
         self.logger.info("DreamFace: Downloading result...")
 
         # Click on the first creation result (most recent)
+        # The _operate div overlays the image, so click it directly
         clicked = False
         for selector in [
+            "._operate_1jvc3_1",  # Operate overlay (intercepts clicks on images)
+            "[class*='operate']",  # Any operate class
             "[class*='creationList'] img.lazyloaded",  # Creation list image
-            "[class*='creationList'] img",  # Any image in creation list
-            "[class*='creation'] img",  # Image in creation container
             "img.lazyloaded",  # Any lazy loaded image
-            "._operate_1jvc3_1",  # Original operate button
         ]:
             try:
                 el = page.locator(selector).first
