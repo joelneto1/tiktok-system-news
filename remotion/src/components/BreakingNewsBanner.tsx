@@ -66,14 +66,14 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
               <span
                 style={{
                   color: '#111111',
-                  fontSize: 46,
+                  fontSize: 56,
                   fontWeight: 700,
                   fontFamily: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif",
                   textAlign: 'center',
-                  lineHeight: 1.15,
+                  lineHeight: 1.1,
                   textTransform: 'uppercase',
-                  letterSpacing: 3,
-                  textShadow: '1px 1px 4px rgba(0,0,0,0.2)',
+                  letterSpacing: 4,
+                  textShadow: '1px 2px 4px rgba(0,0,0,0.25)',
                 }}
               >
                 {headlineText}
