@@ -47,13 +47,18 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
       {Array.from({ length: slotsNeeded }).map((_, i) => {
         const broll = brolls[i % brolls.length];
         const from = i * brollDurationFrames;
+        // Last slot: clamp to remaining frames to prevent stutter/overrun
+        const remaining = durationInFrames - from;
+        const clipDuration = Math.min(brollDurationFrames, remaining);
         const isVideo = isVideoUrl(broll.url);
+
+        if (clipDuration <= 0) return null;
 
         return (
           <Sequence
             key={i}
             from={from}
-            durationInFrames={brollDurationFrames}
+            durationInFrames={clipDuration}
           >
             <AbsoluteFill>
               {isVideo ? (

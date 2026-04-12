@@ -6,14 +6,13 @@ import {
   spring,
   useVideoConfig,
 } from 'remotion';
-import { secondsToFrames } from '../utils/timing';
 
 interface BreakingNewsBannerProps {
   /** Primary banner text, e.g. "BREAKING NEWS" */
   bannerText: string;
-  /** Topic headline shown below the red banner */
+  /** Topic headline shown below the red banner — stays FIXED */
   topicText?: string;
-  /** Keywords to cycle after the static period */
+  /** Keywords (unused — topic stays static) */
   urgentKeywords: string[];
   fps: number;
 }
@@ -21,17 +20,15 @@ interface BreakingNewsBannerProps {
 /**
  * Layer 2: Animated BREAKING NEWS banner.
  *
- * - Slides in from top with spring animation on entry.
- * - Red gradient banner with pulsing glow effect.
- * - "BREAKING" in red box, "NEWS" in yellow box (TV news style).
- * - Scrolling ticker line underneath.
- * - White headline bar below with topic text.
- * - After 15s, cycles urgent keywords in the headline.
+ * - Slides in from top with spring animation.
+ * - Large red gradient banner with pulsing glow.
+ * - "BREAKING" in red box, "NEWS" in yellow box.
+ * - Scrolling ticker underneath.
+ * - White headline bar with FIXED topic text (no cycling).
  */
 export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
   bannerText,
   topicText,
-  urgentKeywords,
   fps,
 }) => {
   const frame = useCurrentFrame();
@@ -43,16 +40,16 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
     fps,
     config: { damping: 15, stiffness: 120, mass: 0.8 },
   });
-  const translateY = interpolate(slideIn, [0, 1], [-200, 0]);
+  const translateY = interpolate(slideIn, [0, 1], [-250, 0]);
 
-  // ── Pulsing glow on the red banner ──
+  // ── Pulsing glow ──
   const glowOpacity = interpolate(
     Math.sin(frame * 0.15),
     [-1, 1],
-    [0.6, 1],
+    [0.7, 1],
   );
 
-  // ── Scrolling ticker line ──
+  // ── Scrolling ticker ──
   const tickerOffset = interpolate(
     frame,
     [0, 9999],
@@ -60,22 +57,8 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
     { extrapolateRight: 'extend' },
   );
 
-  // ── Headline text cycling ──
-  const staticEndFrame = secondsToFrames(15, fps);
-  let headlineText = topicText || bannerText || 'BREAKING NEWS';
-
-  if (frame > staticEndFrame && urgentKeywords.length > 0) {
-    const cycleFrames = secondsToFrames(4, fps);
-    const allTexts = [headlineText, ...urgentKeywords];
-    const cycleIndex =
-      Math.floor((frame - staticEndFrame) / cycleFrames) % allTexts.length;
-    headlineText = allTexts[cycleIndex];
-
-    // Fade transition between texts
-    const cycleProgress = ((frame - staticEndFrame) % cycleFrames) / cycleFrames;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _fadeIn = cycleProgress < 0.1 ? cycleProgress / 0.1 : 1;
-  }
+  // ── Headline: FIXED topic text ──
+  const headlineText = topicText || bannerText || 'BREAKING NEWS';
 
   // ── Headline entry (delayed spring) ──
   const headlineSlide = spring({
@@ -83,7 +66,7 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
     fps,
     config: { damping: 18, stiffness: 100, mass: 0.6 },
   });
-  const headlineY = interpolate(headlineSlide, [0, 1], [-60, 0]);
+  const headlineY = interpolate(headlineSlide, [0, 1], [-80, 0]);
 
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-start' }}>
@@ -97,19 +80,19 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
         <div
           style={{
             width: '100%',
-            height: 90,
+            height: 120,
             background: 'linear-gradient(180deg, #DC2626 0%, #991B1B 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12,
+            gap: 16,
             position: 'relative',
             overflow: 'hidden',
             opacity: glowOpacity,
-            boxShadow: '0 4px 20px rgba(220, 38, 38, 0.6)',
+            boxShadow: '0 6px 24px rgba(220, 38, 38, 0.7)',
           }}
         >
-          {/* Animated background pattern (subtle moving lines) */}
+          {/* Animated background pattern */}
           <div
             style={{
               position: 'absolute',
@@ -120,23 +103,23 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
             }}
           />
 
-          {/* BREAKING text in red box */}
+          {/* BREAKING */}
           <div
             style={{
               backgroundColor: '#B91C1C',
               border: '3px solid #FCD34D',
               borderRadius: 4,
-              padding: '6px 18px',
+              padding: '8px 24px',
               zIndex: 1,
             }}
           >
             <span
               style={{
                 color: '#FFFFFF',
-                fontSize: 38,
+                fontSize: 48,
                 fontWeight: 900,
                 fontFamily: 'Inter, Arial Black, sans-serif',
-                letterSpacing: 4,
+                letterSpacing: 5,
                 textTransform: 'uppercase',
               }}
             >
@@ -144,22 +127,22 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
             </span>
           </div>
 
-          {/* NEWS text in yellow box */}
+          {/* NEWS */}
           <div
             style={{
               backgroundColor: '#FCD34D',
               borderRadius: 4,
-              padding: '6px 18px',
+              padding: '8px 24px',
               zIndex: 1,
             }}
           >
             <span
               style={{
                 color: '#000000',
-                fontSize: 38,
+                fontSize: 48,
                 fontWeight: 900,
                 fontFamily: 'Inter, Arial Black, sans-serif',
-                letterSpacing: 4,
+                letterSpacing: 5,
                 textTransform: 'uppercase',
               }}
             >
@@ -168,11 +151,11 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
           </div>
         </div>
 
-        {/* ── Ticker line (thin red bar with scrolling text) ── */}
+        {/* ── Ticker line ── */}
         <div
           style={{
             width: '100%',
-            height: 28,
+            height: 32,
             backgroundColor: '#7F1D1D',
             overflow: 'hidden',
             display: 'flex',
@@ -184,7 +167,7 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
               whiteSpace: 'nowrap',
               transform: `translateX(${tickerOffset}px)`,
               color: '#FCD34D',
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: 700,
               fontFamily: 'Inter, Arial, sans-serif',
               letterSpacing: 2,
@@ -195,24 +178,24 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
           </div>
         </div>
 
-        {/* ── White headline bar with topic ── */}
+        {/* ── White headline bar — FIXED topic ── */}
         <div
           style={{
             width: '100%',
-            minHeight: 70,
+            minHeight: 90,
             backgroundColor: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '10px 30px',
+            padding: '12px 36px',
             transform: `translateY(${headlineY}px)`,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
           }}
         >
           <span
             style={{
               color: '#111111',
-              fontSize: 30,
+              fontSize: 36,
               fontWeight: 800,
               fontFamily: 'Inter, Arial, sans-serif',
               textAlign: 'center',

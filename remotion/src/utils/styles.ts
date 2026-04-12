@@ -21,13 +21,13 @@ export const FONTS = {
 } as const;
 
 export const CAPTION_STYLE = {
-  fontSize: 52,
+  fontSize: 56,
   fontWeight: 800 as const,
   strokeWidth: 3,
   lineHeight: 1.2,
   maxWidth: 900,
-  wordsPerLine: 4,
-  linesVisible: 2,
+  wordsPerLine: 2,
+  linesVisible: 1,
 } as const;
 
 export const BANNER_STYLE = {

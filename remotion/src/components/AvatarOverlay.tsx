@@ -8,16 +8,16 @@ interface AvatarOverlayProps {
 }
 
 /**
- * Layer 1: Avatar with transparent background in the lower-third center.
+ * Layer 1: Avatar overlay — large, centered in lower portion.
  *
- * - Video should have alpha channel (WebM VP9 with yuva420p).
- * - Positioned at bottom center, taking ~45% of screen height.
- * - Plays for the entire duration synced with TTS audio.
+ * - Fixed size: 70% of frame height, centered horizontally.
+ * - Positioned so the avatar occupies the bottom 70% of the screen.
+ * - objectFit: cover with top center focus (shows face/bust).
+ * - Independent of the reference video's original size.
  */
 export const AvatarOverlay: React.FC<AvatarOverlayProps> = ({
   avatarVideoUrl,
 }) => {
-  // Don't render if no avatar URL is provided
   if (!avatarVideoUrl) {
     return null;
   }
@@ -34,9 +34,9 @@ export const AvatarOverlay: React.FC<AvatarOverlayProps> = ({
         muted
         style={{
           width: '100%',
-          height: '45%',
-          objectFit: 'contain',
-          objectPosition: 'bottom center',
+          height: '70%',
+          objectFit: 'cover',
+          objectPosition: 'top center',
         }}
       />
     </AbsoluteFill>

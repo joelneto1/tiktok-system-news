@@ -150,11 +150,17 @@ class OpenRouterClient:
             "}\n\n"
             "Rules:\n"
             "- Each scene must be exactly 6 seconds long\n"
+            "- The FIRST scene (hook) MUST have an extremely attention-grabbing, "
+            "shocking, dramatic B-Roll prompt. Make it visually stunning and "
+            "impossible to scroll past. This is the most important scene for retention.\n"
+            "- Each B-Roll MUST be directly related to the narration content at that "
+            "exact moment. NEVER generate random or unrelated scenes like generic "
+            "news anchors, journalists at desks, or random people talking.\n"
             "- B-Roll prompts MUST be in ENGLISH, cinematic, detailed "
             '(e.g. "Aerial drone shot of a busy hospital emergency room, '
             'dramatic lighting, 4K")\n'
-            '- SFX options: "whoosh", "impact", "ding", "tension_rise", '
-            '"news_flash", null\n'
+            '- SFX options: "whoosh", "impact", "ding", "tension_rise", null\n'
+            "- Use SFX at scene transitions (hard cuts) to grab attention\n"
             "- Generate 2-5 urgent_keywords relevant to the topic"
         )
 
