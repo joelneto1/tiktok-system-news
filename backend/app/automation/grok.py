@@ -173,7 +173,7 @@ class GrokAutomation:
                 try:
                     video_url = await self._wait_for_video(page, timeout)
                     if video_url:
-                        local_path = await self._download_video(video_url, idx)
+                        local_path = await self._download_video_via_page(page, video_url, idx)
                         results[idx] = local_path
                     else:
                         results[idx] = None
@@ -366,19 +366,27 @@ class GrokAutomation:
         self.logger.warning("Grok: Video generation timed out")
         return None
 
-    @retry_async(max_attempts=3)
-    async def _download_video(self, cdn_url: str, idx: int) -> str:
-        """Download a generated video from Grok CDN."""
+    async def _download_video_via_page(self, page: Page, cdn_url: str, idx: int) -> str:
+        """Download video using the browser page (preserves auth cookies)."""
         output_path = tempfile.mktemp(suffix=f"_broll_{idx:02d}.mp4")
 
-        # Remove cache parameter if present
-        clean_url = cdn_url.split("?")[0]
+        # Use JavaScript fetch within the browser context (has cookies)
+        video_bytes = await page.evaluate("""
+            async (url) => {
+                const resp = await fetch(url, { credentials: 'include' });
+                if (!resp.ok) throw new Error('Download failed: ' + resp.status);
+                const blob = await resp.blob();
+                const reader = new FileReader();
+                return new Promise((resolve) => {
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(blob);
+                });
+            }
+        """, cdn_url)
 
-        async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-            resp = await client.get(clean_url)
-            resp.raise_for_status()
-            with open(output_path, "wb") as f:
-                f.write(resp.content)
+        import base64
+        with open(output_path, "wb") as f:
+            f.write(base64.b64decode(video_bytes))
 
         size_kb = os.path.getsize(output_path) / 1024
         self.logger.debug(f"Grok: Downloaded B-Roll {idx}: {size_kb:.0f}KB")
