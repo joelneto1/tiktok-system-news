@@ -17,16 +17,11 @@ async def compose_and_render(
     music_path: str | None = None,  # MinIO path to background music
     sfx_paths: dict | None = None,  # {sfx_type: MinIO path}
 ) -> str:
-    """Stage 3: Build Remotion composition props and render final video.
-
-    1. Convert all MinIO paths to presigned URLs
-    2. Build CompositionProps JSON matching remotion/src/types.ts
-    3. Write JSON to temp file
-    4. Call Remotion render via subprocess (npx tsx remotion/src/render.ts)
-    5. Upload rendered .mp4 to MinIO
-    6. Return MinIO path
-    """
+    """Stage 3: Build Remotion composition props and render final video."""
     logger.info("[Stage 3] Starting composition for job {jid}", jid=job_id)
+
+    fps = 30
+    broll_duration = 6  # seconds per B-Roll clip
 
     # ── Presigned URLs for all assets ────────────────────────────────
     tts_audio_url = asset_manager.get_asset_url(tts_audio_minio_path)
@@ -37,60 +32,66 @@ async def compose_and_render(
             avatar_data["avatar_minio_path"]
         )
 
-    # ── B-Roll items with presigned URLs ─────────────────────────────
-    fps = 30
-    broll_duration = 6  # seconds per B-Roll clip (full Grok take)
+    # ── B-Roll items (BRollItemSchema) ──────────────────────────────
+    # { url, startFrame, durationInFrames, alt? }
     brolls: list[dict] = []
-    for idx in sorted(broll_data.get("broll_paths", {}).keys()):
+    sorted_indices = sorted(broll_data.get("broll_paths", {}).keys())
+    for i, idx in enumerate(sorted_indices):
         path = broll_data["broll_paths"][idx]
         url = asset_manager.get_asset_url(path)
-        start_frame = idx * broll_duration * fps
-        end_frame = start_frame + (broll_duration * fps)
-        brolls.append(
-            {
-                "url": url,
-                "startFrame": start_frame,
-                "endFrame": end_frame,
-            }
-        )
+        start_frame = i * broll_duration * fps
+        duration_frames = broll_duration * fps
+        brolls.append({
+            "url": url,
+            "startFrame": start_frame,
+            "durationInFrames": duration_frames,
+            "alt": broll_data.get("scenes", [{}])[i].get("description", "")[:80] if i < len(broll_data.get("scenes", [])) else "",
+        })
 
-    # ── Caption words from word timestamps ───────────────────────────
+    # ── Caption words (CaptionWordSchema) ───────────────────────────
+    # { word, start, end, confidence? }
     captions: list[dict] = []
     for wt in broll_data.get("word_timestamps", []):
-        captions.append(
-            {
-                "word": wt["word"],
-                "startTime": wt["start"],
-                "endTime": wt["end"],
-            }
-        )
+        captions.append({
+            "word": wt.get("word", ""),
+            "start": wt.get("start", 0),
+            "end": wt.get("end", 0),
+        })
 
-    # ── Scenes ───────────────────────────────────────────────────────
+    # ── Scenes (SceneBlockSchema) ───────────────────────────────────
+    # { id, type, startFrame, durationInFrames, text?, brollIndex? }
     scenes: list[dict] = []
-    for scene in broll_data.get("scenes", []):
-        scenes.append(
-            {
-                "startTime": scene.get("start_time", 0),
-                "endTime": scene.get("end_time", 3),
-                "description": scene.get("description", ""),
-                "keyword": scene.get("broll_prompt", "")[:50],
-            }
-        )
+    raw_scenes = broll_data.get("scenes", [])
+    for i, scene in enumerate(raw_scenes):
+        start_time = scene.get("start_time", i * broll_duration)
+        end_time = scene.get("end_time", start_time + broll_duration)
+        start_frame = int(start_time * fps)
+        duration_frames = int((end_time - start_time) * fps)
+        if duration_frames < 1:
+            duration_frames = broll_duration * fps
 
-    # ── SFX items ────────────────────────────────────────────────────
+        scenes.append({
+            "id": f"scene_{i:02d}",
+            "type": "broll",
+            "startFrame": start_frame,
+            "durationInFrames": duration_frames,
+            "text": scene.get("description", ""),
+            "brollIndex": i if i < len(brolls) else 0,
+        })
+
+    # ── SFX items (SfxItemSchema) ───────────────────────────────────
+    # { url, startFrame, volume? }
     sfx: list[dict] = []
-    for scene in broll_data.get("scenes", []):
+    for scene in raw_scenes:
         sfx_type = scene.get("sfx")
         if sfx_type and sfx_paths and sfx_type in sfx_paths:
             sfx_url = asset_manager.get_asset_url(sfx_paths[sfx_type])
             start_frame = int(scene.get("start_time", 0) * fps)
-            sfx.append(
-                {
-                    "url": sfx_url,
-                    "startFrame": start_frame,
-                    "volume": 0.35,
-                }
-            )
+            sfx.append({
+                "url": sfx_url,
+                "startFrame": start_frame,
+                "volume": 0.35,
+            })
 
     # ── Music URL ────────────────────────────────────────────────────
     music_url = ""
@@ -142,7 +143,6 @@ async def compose_and_render(
         f.write(props_json)
 
     # ── Resolve Remotion directory ───────────────────────────────────
-    # Try several common locations relative to the backend working dir
     candidates = [
         os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "remotion")
@@ -158,13 +158,9 @@ async def compose_and_render(
             break
 
     if remotion_dir is None:
-        # Fallback -- use first candidate and let subprocess fail with a
-        # clear error rather than a confusing NoneType error.
         remotion_dir = os.path.normpath(candidates[0])
         logger.warning(
-            "[Stage 3] Remotion directory not found at any candidate; "
-            "using {d}",
-            d=remotion_dir,
+            "[Stage 3] Remotion directory not found; using {d}", d=remotion_dir
         )
 
     # ── Call Remotion render ─────────────────────────────────────────
@@ -188,7 +184,7 @@ async def compose_and_render(
         render_cmd,
         capture_output=True,
         text=True,
-        timeout=600,  # 10 min max
+        timeout=600,
         cwd=remotion_dir,
     )
 
@@ -198,9 +194,7 @@ async def compose_and_render(
         raise RuntimeError(f"Remotion render failed: {error_tail}")
 
     if not os.path.exists(output_file):
-        raise RuntimeError(
-            "[Stage 3] Render completed but output file not found"
-        )
+        raise RuntimeError("[Stage 3] Render completed but output file not found")
 
     # ── Upload rendered video to MinIO ───────────────────────────────
     output_minio_path = asset_manager.save_asset_from_file(
