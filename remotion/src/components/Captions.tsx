@@ -69,7 +69,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
       style={{
         justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingTop: '45%',
+        paddingTop: '32%',
       }}
     >
       <div
