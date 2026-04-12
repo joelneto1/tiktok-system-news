@@ -11,7 +11,7 @@ from app.schemas.log import LogListResponse, LogOut
 router = APIRouter(prefix="/logs", tags=["logs"])
 
 
-@router.get("", response_model=LogListResponse)
+@router.get("/", response_model=LogListResponse)
 async def list_logs(
     page: int = 1,
     page_size: int = 100,

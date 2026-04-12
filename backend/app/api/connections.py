@@ -34,7 +34,7 @@ def _account_to_out(account: ConnectionAccount) -> AccountOut:
     )
 
 
-@router.get("", response_model=list[AccountOut])
+@router.get("/", response_model=list[AccountOut])
 async def list_accounts(
     service: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -51,7 +51,7 @@ async def list_accounts(
     return [_account_to_out(a) for a in accounts]
 
 
-@router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
 async def add_account(
     data: AccountCreate,
     db: AsyncSession = Depends(get_db),

@@ -7,7 +7,7 @@ from app.utils.logger import logger
 router = APIRouter(prefix="/voices", tags=["voices"])
 
 
-@router.get("")
+@router.get("/")
 async def list_voices(
     language: str | None = Query(None),
     category: str | None = Query(None),

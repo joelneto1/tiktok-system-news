@@ -133,7 +133,7 @@ async def upload_sfx(
     return _to_sfx_out(sfx)
 
 
-@router.get("")
+@router.get("/")
 async def list_sfx(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),

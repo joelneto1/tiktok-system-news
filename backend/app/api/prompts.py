@@ -26,7 +26,7 @@ def _prompt_to_out(prompt: SystemPrompt) -> PromptOut:
     )
 
 
-@router.get("", response_model=list[PromptOut])
+@router.get("/", response_model=list[PromptOut])
 async def list_prompts(
     model_type: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -62,7 +62,7 @@ async def get_prompt(
     return _prompt_to_out(prompt)
 
 
-@router.post("", response_model=PromptOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PromptOut, status_code=status.HTTP_201_CREATED)
 async def create_prompt(
     data: PromptCreate,
     db: AsyncSession = Depends(get_db),

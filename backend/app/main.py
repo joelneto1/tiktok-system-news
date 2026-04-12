@@ -5,12 +5,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from app.api.router import api_router
 from app.config import settings
 from app.seeds.prompts import seed_default_prompts
 from app.services.minio_client import minio_client
 from app.utils.logger import setup_logger
+
+
+class TrailingSlashMiddleware(BaseHTTPMiddleware):
+    """Normalize /api/ paths: strip trailing slash so routes match consistently."""
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.scope["path"]
+        if path.startswith("/api/") and path.endswith("/") and len(path) > 5:
+            request.scope["path"] = path.rstrip("/")
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -28,9 +40,10 @@ app = FastAPI(
     title="News TikTok Pipeline",
     version="1.0.0",
     lifespan=lifespan,
-    # redirect_slashes defaults to True — routes work with or without trailing slash
+    redirect_slashes=False,
 )
 
+app.add_middleware(TrailingSlashMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -60,12 +73,8 @@ if os.path.isdir(_frontend_dist):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        # API routes: redirect to trailing slash so FastAPI router matches
-        if full_path.startswith("api/") or full_path == "api":
-            from fastapi.responses import RedirectResponse
-            from starlette.requests import Request
-            # Let FastAPI's own routing handle it by returning 404
-            # The API client should use trailing slashes
+        # Never intercept API routes
+        if full_path.startswith("api"):
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Not found")
 

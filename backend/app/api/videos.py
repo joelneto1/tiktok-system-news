@@ -53,7 +53,7 @@ async def _get_user_video(video_id: str, user: User, db: AsyncSession) -> Video:
     return video
 
 
-@router.get("", response_model=VideoListResponse)
+@router.get("/", response_model=VideoListResponse)
 async def list_videos(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
