@@ -197,7 +197,7 @@ async def upload_reference(
     return _to_reference_out(reference)
 
 
-@router.get("/", response_model=ReferenceListResponse)
+@router.get("", response_model=ReferenceListResponse)
 async def list_references(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),

@@ -112,7 +112,8 @@
       "Bash(git remote:*)",
       "Bash(git commit -m ':*)",
       "Bash(git push:*)",
-      "Bash(rm -f /c/Users/joeln/system-news-tiktok/.git/index.lock)"
+      "Bash(rm -f /c/Users/joeln/system-news-tiktok/.git/index.lock)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

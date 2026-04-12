@@ -51,7 +51,7 @@ def _setting_to_out(setting: SystemSettings) -> SettingOut:
     )
 
 
-@router.get("/", response_model=list[SettingOut])
+@router.get("", response_model=list[SettingOut])
 async def list_settings(
     category: str | None = None,
     db: AsyncSession = Depends(get_db),

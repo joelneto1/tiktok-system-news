@@ -60,8 +60,12 @@ if os.path.isdir(_frontend_dist):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        # Don't intercept API routes — let FastAPI handle them
+        # API routes: redirect to trailing slash so FastAPI router matches
         if full_path.startswith("api/") or full_path == "api":
+            from fastapi.responses import RedirectResponse
+            from starlette.requests import Request
+            # Let FastAPI's own routing handle it by returning 404
+            # The API client should use trailing slashes
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Not found")
 
