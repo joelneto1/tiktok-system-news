@@ -13,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { listVideos, getVideoDownloadUrl, deleteVideo } from '@/api/videos'
+import { listVideos, getVideoDownloadUrl, deleteVideo, getVideoScript } from '@/api/videos'
 import { retryPipeline } from '@/api/pipeline'
 
 type JobStatus = 'COMPLETED' | 'PROCESSING' | 'QUEUED' | 'FAILED'
@@ -112,6 +112,7 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const [scriptModal, setScriptModal] = useState<{ jobId: string; topic: string; script: string } | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchJobs = useCallback(async () => {
@@ -170,6 +171,18 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
 
   function handleDownload(jobId: string) {
     window.open(getVideoDownloadUrl(jobId), '_blank')
+  }
+
+  async function handleScript(jobId: string, topic: string) {
+    setActionLoading((prev) => ({ ...prev, [jobId]: true }))
+    try {
+      const resp = await getVideoScript(jobId)
+      setScriptModal({ jobId, topic, script: resp.script })
+    } catch {
+      setScriptModal({ jobId, topic, script: 'Script ainda não disponível.' })
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [jobId]: false }))
+    }
   }
 
   async function handleRetry(jobId: string) {
@@ -315,6 +328,8 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
                       {job.status !== 'QUEUED' && (
                         <button
                           type="button"
+                          onClick={() => handleScript(job.id, job.topic)}
+                          disabled={actionLoading[job.id]}
                           className={cn(
                             ACTION_BTN,
                             'bg-background border border-border text-text-secondary hover:text-text-primary hover:border-text-secondary/30',
@@ -397,6 +412,39 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
         <div className="flex flex-col items-center justify-center py-12 text-text-secondary/50">
           <CircleDot className="w-8 h-8 mb-2" />
           <span className="text-sm">Nenhum job encontrado</span>
+        </div>
+      )}
+
+      {/* Script Modal */}
+      {scriptModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setScriptModal(null)}
+        >
+          <div
+            className="w-full max-w-2xl mx-4 rounded-xl bg-surface border border-border shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-accent shrink-0" />
+                <span className="text-sm font-semibold text-text-primary truncate">
+                  {scriptModal.topic}
+                </span>
+              </div>
+              <button
+                onClick={() => setScriptModal(null)}
+                className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded-md hover:bg-surface-hover transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+            <div className="p-5 max-h-[60vh] overflow-y-auto">
+              <pre className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap font-sans">
+                {scriptModal.script}
+              </pre>
+            </div>
+          </div>
         </div>
       )}
     </div>
