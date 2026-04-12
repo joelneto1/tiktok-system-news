@@ -28,6 +28,7 @@ export const AvatarOverlay: React.FC<AvatarOverlayProps> = ({
       <Video
         src={avatarVideoUrl}
         muted
+        pauseWhenBuffering
         style={{
           width: '100%',
           height: '70%',
