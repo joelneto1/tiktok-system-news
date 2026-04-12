@@ -87,7 +87,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
             key={lineIdx}
             style={{
               display: 'flex',
-              gap: 12,
+              gap: 24,
               justifyContent: 'center',
               flexWrap: 'wrap',
             }}
@@ -115,7 +115,9 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
                     transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
                     textTransform: 'uppercase',
                     display: 'inline-block',
-                    marginRight: 14,
+                    marginRight: 20,
+                    paddingLeft: 4,
+                    paddingRight: 4,
                   }}
                 >
                   {word.word}{' '}
