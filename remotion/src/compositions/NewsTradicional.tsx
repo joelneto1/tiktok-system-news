@@ -31,6 +31,7 @@ export const NewsTradicional: React.FC<CompositionProps> = (props) => {
         bannerText={props.bannerText || 'BREAKING NEWS'}
         topicText={props.topicText}
         urgentKeywords={props.urgentKeywords || []}
+        bannerTemplateUrl={props.bannerTemplateUrl}
         fps={fps}
       />
 

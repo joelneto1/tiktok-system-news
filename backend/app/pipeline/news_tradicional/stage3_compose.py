@@ -118,18 +118,17 @@ async def compose_and_render(
     )
     duration_in_frames = int(total_duration * fps)
 
-    # ── Banner template URL ────────────────────────────────────────────
+    # ── Banner template URL (pre-cropped, lightweight) ────────────────
     banner_template_url = ""
-    banner_template_path = "templates/breaking-news-tradicional.mp4"
+    banner_template_path = "templates/banner-cropped.mp4"
     if not minio_client.object_exists(banner_template_path):
-        # Upload template from local file on first use
         import os as _os
         template_local = _os.path.normpath(
-            _os.path.join(_os.path.dirname(__file__), "..", "..", "..", "..", "remotion", "public", "breaking-news-template.mp4")
+            _os.path.join(_os.path.dirname(__file__), "..", "..", "..", "..", "remotion", "public", "banner-cropped.mp4")
         )
         if _os.path.isfile(template_local):
             minio_client.upload_from_file(banner_template_path, template_local, "video/mp4")
-            logger.info("[Stage 3] Uploaded banner template to MinIO")
+            logger.info("[Stage 3] Uploaded cropped banner template to MinIO")
     if minio_client.object_exists(banner_template_path):
         banner_template_url = asset_manager.get_asset_url(banner_template_path)
 
