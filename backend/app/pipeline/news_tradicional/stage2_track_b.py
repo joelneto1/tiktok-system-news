@@ -177,16 +177,30 @@ async def process_brolls(
         # Mark account as successfully used
         await account_rotator.mark_account_used(account, success=True)
 
-        # ── Step 7: Upload B-Rolls to MinIO ──────────────────────
+        # ── Step 7: Convert B-Rolls to 30fps + Upload to MinIO ────
         if on_progress:
-            on_progress("Uploading B-Rolls to storage...")
+            on_progress("Converting B-Rolls to 30fps and uploading...")
 
         broll_minio_paths: dict[int, str] = {}
         for idx, local_path in broll_local_paths.items():
             if local_path and os.path.exists(local_path):
+                # Convert to 30fps to match Remotion composition
+                converted_path = local_path.replace('.mp4', '_30fps.mp4')
+                try:
+                    import subprocess
+                    subprocess.run(
+                        ['ffmpeg', '-y', '-i', local_path,
+                         '-r', '30', '-c:v', 'libx264', '-preset', 'fast',
+                         '-crf', '23', '-an', converted_path],
+                        capture_output=True, timeout=60,
+                    )
+                    upload_path = converted_path if os.path.exists(converted_path) else local_path
+                except Exception:
+                    upload_path = local_path
+
                 filename = f"broll_{idx:02d}.mp4"
                 minio_path = asset_manager.save_asset_from_file(
-                    job_id, "stage2_brolls", filename, local_path, "video/mp4"
+                    job_id, "stage2_brolls", filename, upload_path, "video/mp4"
                 )
                 broll_minio_paths[idx] = minio_path
 
