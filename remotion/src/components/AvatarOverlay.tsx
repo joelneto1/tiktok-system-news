@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, OffthreadVideo } from 'remotion';
+import { AbsoluteFill, Video } from 'remotion';
 
 interface AvatarOverlayProps {
   avatarVideoUrl: string;
@@ -9,6 +9,8 @@ interface AvatarOverlayProps {
 /**
  * Layer 1: Avatar overlay — large, centered in lower portion.
  * 70% height, cover with top-center focus.
+ * Uses Video (not OffthreadVideo) because browser natively supports
+ * WebM VP9 alpha transparency without the transparent prop.
  */
 export const AvatarOverlay: React.FC<AvatarOverlayProps> = ({
   avatarVideoUrl,
@@ -24,7 +26,7 @@ export const AvatarOverlay: React.FC<AvatarOverlayProps> = ({
         alignItems: 'center',
       }}
     >
-      <OffthreadVideo
+      <Video
         src={avatarVideoUrl}
         muted
         style={{
