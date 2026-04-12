@@ -65,8 +65,9 @@ class GrokAutomation:
         Returns:
             Dict mapping prompt_index → local_file_path for successful generations
         """
-        # Open all tabs at once — no batching
-        batch_size = len(prompts)
+        # Batch size: limit to avoid overloading VPS memory/swap
+        if batch_size is None:
+            batch_size = min(len(prompts), 3)
 
         total = len(prompts)
         results: dict[int, str] = {}
