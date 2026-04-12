@@ -6,6 +6,7 @@ import {
   useCurrentFrame,
   interpolate,
   spring,
+  staticFile,
 } from 'remotion';
 
 interface BreakingNewsBannerProps {
@@ -56,8 +57,8 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
           width: '100%',
         }}
       >
-        {/* Video template banner (cropped to 460px, includes white bar, no black) */}
-        {bannerTemplateUrl ? (
+        {/* Video template banner (cropped to 460px, includes white bar) */}
+        {true ? (
           <div
             style={{
               width: '100%',
@@ -68,7 +69,7 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
           >
             <Loop durationInFrames={Math.round(85 * fps)}>
               <Video
-                src={bannerTemplateUrl}
+                src={staticFile('banner-cropped.mp4')}
                 muted
                 style={{
                   width: '100%',
