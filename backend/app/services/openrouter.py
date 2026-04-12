@@ -94,25 +94,27 @@ class OpenRouterClient:
         Returns the raw script text.
         """
         default_prompt = (
-            f"Voce e um roteirista especializado em videos virais de noticias "
-            f"para TikTok e YouTube Shorts.\n"
-            f"Gere um roteiro de narracao para um video vertical (9:16) sobre o "
-            f"topico fornecido.\n\n"
-            f"Regras:\n"
-            f"- Idioma: {language}\n"
-            f"- Duracao da narracao: 45-90 segundos quando lido em voz alta\n"
-            f"- Comece com um HOOK forte nos primeiros 3 segundos "
-            f"(pergunta chocante, afirmacao surpreendente, alerta urgente)\n"
-            f"- Use frases CURTAS e DIRETAS (maximo 15 palavras por frase)\n"
-            f"- Tom: urgente, jornalistico, como breaking news\n"
-            f"- Nao use emojis ou formatacao especial\n"
-            f"- Apenas o texto da narracao, sem indicacoes de cena ou direcoes\n"
-            f"- Termine com uma chamada para acao (CTA) forte\n\n"
-            f"Retorne APENAS o texto do roteiro, sem titulos ou explicacoes."
+            f"You are a screenwriter specialized in viral news videos "
+            f"for TikTok and YouTube Shorts.\n"
+            f"Generate a narration script for a vertical video (9:16) about the "
+            f"given topic.\n\n"
+            f"CRITICAL: The ENTIRE script MUST be written in {language}. "
+            f"Every single word must be in {language}. Do NOT mix languages.\n\n"
+            f"Rules:\n"
+            f"- Language: {language} (mandatory, all output in this language)\n"
+            f"- Narration duration: 45-90 seconds when read aloud\n"
+            f"- Start with a STRONG HOOK in the first 3 seconds "
+            f"(shocking question, surprising statement, urgent alert)\n"
+            f"- Use SHORT and DIRECT sentences (max 15 words per sentence)\n"
+            f"- Tone: urgent, journalistic, like breaking news\n"
+            f"- No emojis or special formatting\n"
+            f"- Only narration text, no scene directions or cues\n"
+            f"- End with a strong call-to-action (CTA)\n\n"
+            f"Return ONLY the script text, no titles or explanations."
         )
 
         prompt = system_prompt or default_prompt
-        return await self.generate(prompt, f"Topico: {topic}")
+        return await self.generate(prompt, f"Topic: {topic}")
 
     async def generate_scene_directions(
         self,
@@ -126,38 +128,38 @@ class OpenRouterClient:
         ``sfx_cues`` parsed from the LLM JSON output.
         """
         default_prompt = (
-            "Voce e um diretor de cena para videos de noticias virais.\n"
-            "Receba o roteiro com timestamps e defina:\n"
-            "1. Blocos semanticos para B-Rolls (cada bloco = 6 segundos de video)\n"
-            "2. Prompts de texto-para-video para cada B-Roll "
-            "(em ingles, descritivos, cinematicos)\n"
-            "3. Momentos exatos para efeitos sonoros (SFX) nas transicoes\n\n"
-            "Retorne um JSON valido com esta estrutura:\n"
+            "You are a scene director for viral news videos.\n"
+            "Receive the script with timestamps and define:\n"
+            "1. Semantic blocks for B-Rolls (each block = 6 seconds of video)\n"
+            "2. Text-to-video prompts for each B-Roll "
+            "(in English, descriptive, cinematic)\n"
+            "3. Exact moments for sound effects (SFX) at transitions\n\n"
+            "Return a valid JSON with this structure:\n"
             "{\n"
             '  "scenes": [\n'
             "    {\n"
             '      "start_time": 0.0,\n'
             '      "end_time": 6.0,\n'
-            '      "description": "descricao semantica da cena",\n'
-            '      "broll_prompt": "cinematic prompt in english for '
+            '      "description": "semantic description of the scene",\n'
+            '      "broll_prompt": "cinematic prompt in English for '
             'text-to-video generation",\n'
             '      "sfx": "whoosh"\n'
             "    }\n"
             "  ],\n"
             '  "urgent_keywords": ["keyword1", "keyword2"]\n'
             "}\n\n"
-            "Regras:\n"
-            "- Cada cena deve ter exatamente 6 segundos de duracao\n"
-            "- Prompts de B-Roll devem ser em INGLES, cinematicos, detalhados "
-            '(ex: "Aerial drone shot of a busy hospital emergency room, '
+            "Rules:\n"
+            "- Each scene must be exactly 6 seconds long\n"
+            "- B-Roll prompts MUST be in ENGLISH, cinematic, detailed "
+            '(e.g. "Aerial drone shot of a busy hospital emergency room, '
             'dramatic lighting, 4K")\n'
-            '- SFX opcoes: "whoosh", "impact", "ding", "tension_rise", '
+            '- SFX options: "whoosh", "impact", "ding", "tension_rise", '
             '"news_flash", null\n'
-            "- Gere entre 2-5 urgent_keywords relevantes ao topico"
+            "- Generate 2-5 urgent_keywords relevant to the topic"
         )
 
         prompt = system_prompt or default_prompt
-        user_msg = f"Roteiro:\n{script}\n\nTimestamps:\n{timestamps}"
+        user_msg = f"Script:\n{script}\n\nTimestamps:\n{timestamps}"
 
         response = await self.generate(prompt, user_msg, temperature=0.3, max_tokens=8192)
 
