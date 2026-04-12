@@ -2,9 +2,6 @@ import React from 'react';
 import {
   AbsoluteFill,
   Video,
-  useCurrentFrame,
-  interpolate,
-  spring,
   staticFile,
 } from 'remotion';
 
@@ -19,43 +16,20 @@ interface BreakingNewsBannerProps {
 /**
  * Layer 2: BREAKING NEWS banner using cropped video template.
  *
- * Uses staticFile (local, no HTTP) and NO Loop (template is 85s, longer than video).
- * Topic text overlaid on the white bar area with Bebas Neue font.
+ * - No entry animation (fixed from frame 0)
+ * - staticFile for local serving
+ * - Topic text large, 2 lines, prominent on white bar
  */
 export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
   bannerText,
   topicText,
-  fps,
 }) => {
-  const frame = useCurrentFrame();
-
-  // Entry slide animation
-  const slideIn = spring({
-    frame,
-    fps,
-    config: { damping: 15, stiffness: 120, mass: 0.8 },
-  });
-  const translateY = interpolate(slideIn, [0, 1], [-500, 0]);
-
   const headlineText = topicText || bannerText || 'BREAKING NEWS';
-
-  // Headline delayed spring
-  const headlineSlide = spring({
-    frame: frame - 10,
-    fps,
-    config: { damping: 18, stiffness: 100, mass: 0.6 },
-  });
-  const headlineY = interpolate(headlineSlide, [0, 1], [-100, 0]);
 
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-start', pointerEvents: 'none' }}>
-      <div
-        style={{
-          transform: `translateY(${translateY}px)`,
-          width: '100%',
-        }}
-      >
-        {/* Video template banner (cropped 460px, served locally via staticFile) */}
+      <div style={{ width: '100%' }}>
+        {/* Video template banner — fixed, no animation */}
         <div
           style={{
             width: '100%',
@@ -74,34 +48,35 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
             }}
           />
 
-          {/* Topic text on the white bar */}
+          {/* Topic text — large, 2 lines, prominent */}
           {topicText && (
             <div
               style={{
                 position: 'absolute',
-                bottom: 40,
+                bottom: 10,
                 left: 0,
                 width: '100%',
+                height: 140,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '0 40px',
+                padding: '0 30px',
               }}
             >
               <span
                 style={{
                   color: '#111111',
-                  fontSize: 38,
+                  fontSize: 46,
                   fontWeight: 700,
                   fontFamily: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif",
                   textAlign: 'center',
-                  lineHeight: 1.2,
+                  lineHeight: 1.15,
                   textTransform: 'uppercase',
-                  letterSpacing: 2,
-                  textShadow: '1px 1px 3px rgba(0,0,0,0.15)',
+                  letterSpacing: 3,
+                  textShadow: '1px 1px 4px rgba(0,0,0,0.2)',
                 }}
               >
-                {topicText}
+                {headlineText}
               </span>
             </div>
           )}
