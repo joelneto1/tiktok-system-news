@@ -67,9 +67,9 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
   return (
     <AbsoluteFill
       style={{
-        justifyContent: 'flex-end',
+        justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingBottom: '25%',
+        paddingTop: '45%',
       }}
     >
       <div
@@ -118,7 +118,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
                     marginRight: 14,
                   }}
                 >
-                  {word.word}
+                  {word.word}{' '}
                 </span>
               );
             })}

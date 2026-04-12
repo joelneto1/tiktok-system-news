@@ -88,17 +88,29 @@ async def compose_and_render(
         if sfx_type and sfx_paths and sfx_type in sfx_paths:
             sfx_url = asset_manager.get_asset_url(sfx_paths[sfx_type])
             start_frame = int(scene.get("start_time", 0) * fps)
-            volume = 0.15 if sfx_type == "impact" else 0.30
+            # Impact: very soft, max 1 per video (skip if already have one)
+            if sfx_type == "impact":
+                has_impact = any(s.get("_type") == "impact" for s in sfx)
+                if has_impact:
+                    continue  # Only 1 impact per video
+                volume = 0.08
+            else:
+                volume = 0.20
             sfx.append({
                 "url": sfx_url,
                 "startFrame": start_frame,
                 "volume": volume,
+                "_type": sfx_type,  # internal tracking, stripped before render
             })
 
     # ── Music URL ────────────────────────────────────────────────────
     music_url = ""
     if music_path:
         music_url = asset_manager.get_asset_url(music_path)
+
+    # Strip internal _type field from SFX items
+    for item in sfx:
+        item.pop("_type", None)
 
     # ── Calculate duration ───────────────────────────────────────────
     total_duration = broll_data.get(
