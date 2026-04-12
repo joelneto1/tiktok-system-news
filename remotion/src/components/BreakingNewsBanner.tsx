@@ -129,7 +129,8 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
           </div>
         )}
 
-        {/* White headline bar — FIXED topic */}
+        {/* White headline bar — only when NO video template (fallback) */}
+        {!bannerTemplateUrl && (
         <div
           style={{
             width: '100%',
@@ -157,6 +158,7 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
             {headlineText}
           </span>
         </div>
+        )}
       </div>
     </AbsoluteFill>
   );

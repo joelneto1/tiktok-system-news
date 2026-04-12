@@ -81,6 +81,16 @@ async def compose_and_render(
 
     # ── SFX items (SfxItemSchema) ───────────────────────────────────
     sfx: list[dict] = []
+
+    # Always start with a Ding at frame 0
+    if sfx_paths and "ding" in sfx_paths:
+        sfx.append({
+            "url": asset_manager.get_asset_url(sfx_paths["ding"]),
+            "startFrame": 0,
+            "volume": 0.25,
+            "_type": "ding",
+        })
+
     for scene in raw_scenes:
         sfx_type = scene.get("sfx")
         if sfx_type == "news_flash":
