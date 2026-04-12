@@ -16,6 +16,7 @@ async def compose_and_render(
     broll_data: dict,
     music_path: str | None = None,
     sfx_paths: dict | None = None,
+    topic: str = "",
 ) -> str:
     """Stage 3: Build Remotion composition props and render final video."""
     logger.info("[Stage 3] Starting composition for job {jid}", jid=job_id)
@@ -81,6 +82,8 @@ async def compose_and_render(
     sfx: list[dict] = []
     for scene in raw_scenes:
         sfx_type = scene.get("sfx")
+        if sfx_type == "news_flash":
+            continue  # Never use news_flash
         if sfx_type and sfx_paths and sfx_type in sfx_paths:
             sfx_url = asset_manager.get_asset_url(sfx_paths[sfx_type])
             start_frame = int(scene.get("start_time", 0) * fps)
@@ -118,7 +121,7 @@ async def compose_and_render(
         "sfx": sfx,
         "musicUrl": music_url,
         "bannerText": "BREAKING NEWS",
-        "topicText": script.split('\n')[0][:120] if script else "",
+        "topicText": topic[:120] if topic else (script.split('\n')[0][:120] if script else ""),
         "urgentKeywords": broll_data.get("urgent_keywords", []),
     }
 

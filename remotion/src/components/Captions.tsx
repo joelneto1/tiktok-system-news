@@ -69,7 +69,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
       style={{
         justifyContent: 'flex-end',
         alignItems: 'center',
-        paddingBottom: '58%',
+        paddingBottom: '25%',
       }}
     >
       <div
@@ -115,6 +115,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
                     transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
                     textTransform: 'uppercase',
                     display: 'inline-block',
+                    marginRight: 14,
                   }}
                 >
                   {word.word}

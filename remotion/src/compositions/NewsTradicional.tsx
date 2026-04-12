@@ -2,7 +2,7 @@ import React from 'react';
 import { AbsoluteFill, useVideoConfig } from 'remotion';
 import { BackgroundBRoll } from '../components/BackgroundBRoll';
 import { AvatarOverlay } from '../components/AvatarOverlay';
-import { BreakingNewsBanner } from '../components/BreakingNewsBanner';
+import { BreakingNewsBannerVideo } from '../components/BreakingNewsBannerVideo';
 import { Captions } from '../components/Captions';
 import { SoundDesign } from '../components/SoundDesign';
 import type { CompositionProps } from '../types';
@@ -12,13 +12,9 @@ import type { CompositionProps } from '../types';
  *
  * Layer 0: Background B-Rolls (6s each, muted)
  * Layer 1: Avatar with transparent background
- * Layer 2: BREAKING NEWS banner
+ * Layer 2: BREAKING NEWS banner (video template + topic text)
  * Layer 3: Word-synced captions
  * Layer 4: Sound design (TTS + music + SFX)
- *
- * Resolution: 1080x1920 (9:16 vertical)
- * FPS: 30
- * Style: Breaking news, high retention, 6s B-Roll takes
  */
 export const NewsTradicional: React.FC<CompositionProps> = (props) => {
   const { fps, durationInFrames } = useVideoConfig();
@@ -39,12 +35,11 @@ export const NewsTradicional: React.FC<CompositionProps> = (props) => {
         durationInFrames={durationInFrames}
       />
 
-      {/* Layer 2: Animated BREAKING NEWS banner + topic headline */}
-      <BreakingNewsBanner
-        bannerText={props.bannerText || 'BREAKING NEWS'}
+      {/* Layer 2: Breaking News banner (video template + topic) */}
+      <BreakingNewsBannerVideo
         topicText={props.topicText}
-        urgentKeywords={props.urgentKeywords || []}
         fps={fps}
+        durationInFrames={durationInFrames}
       />
 
       {/* Layer 3: Word-synced captions */}

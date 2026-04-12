@@ -309,6 +309,7 @@ class NewsTradicionalPipeline(BasePipeline):
             broll_data=broll_data,
             sfx_paths=sfx_paths,
             music_path=music_path,
+            topic=topic,
         )
 
         if on_stage_update:
@@ -378,6 +379,7 @@ class NewsTradicionalPipeline(BasePipeline):
         broll_data=None,
         sfx_paths=None,
         music_path=None,
+        topic="",
         **kwargs,
     ):
         # Build a minimal avatar_data when no avatar is available
@@ -397,4 +399,5 @@ class NewsTradicionalPipeline(BasePipeline):
             broll_data=broll_data,
             music_path=music_path,
             sfx_paths=sfx_paths,
+            topic=topic,
         )
