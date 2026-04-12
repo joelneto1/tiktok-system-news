@@ -6,20 +6,7 @@ import {
   useCurrentFrame,
   interpolate,
   spring,
-  continueRender,
-  delayRender,
 } from 'remotion';
-
-// Load Bebas Neue from Google Fonts
-const waitForFont = delayRender();
-const bebasNeue = new FontFace(
-  'Bebas Neue',
-  'url(https://fonts.gstatic.com/s/bebasneue/v14/JTUSjIg69CK48gW7PXooxW5rygbi49c.woff2)',
-);
-bebasNeue.load().then((font) => {
-  document.fonts.add(font);
-  continueRender(waitForFont);
-}).catch(() => continueRender(waitForFont));
 
 interface BreakingNewsBannerProps {
   bannerText: string;
@@ -109,7 +96,7 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
                     color: '#111111',
                     fontSize: 36,
                     fontWeight: 700,
-                    fontFamily: "'Bebas Neue', 'Arial Narrow', Impact, sans-serif",
+                    fontFamily: "Impact, 'Arial Narrow', Haettenschweiler, sans-serif",
                     textAlign: 'center',
                     lineHeight: 1.2,
                     textTransform: 'uppercase',
