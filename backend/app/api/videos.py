@@ -162,10 +162,17 @@ async def get_script(
     """Return the generated script text for a video."""
     video = await _get_user_video(video_id, user, db)
 
-    if not video.script:
+    script_text = video.script
+
+    # Fallback: try MinIO if DB field is empty
+    if not script_text:
+        from app.processing.asset_manager import asset_manager
+        script_text = asset_manager.try_download_text(str(video.id), "stage1", "script.txt")
+
+    if not script_text:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Script is not yet available for this video",
         )
 
-    return {"video_id": str(video.id), "script": video.script}
+    return {"video_id": str(video.id), "script": script_text}
