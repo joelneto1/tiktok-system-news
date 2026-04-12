@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Img, OffthreadVideo, Sequence } from 'remotion';
+import { AbsoluteFill, Img, Video, Sequence } from 'remotion';
 import type { BRollItem } from '../types';
 import { secondsToFrames } from '../utils/timing';
 
@@ -50,11 +50,10 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
           <Sequence key={i} from={from} durationInFrames={clipDuration}>
             <AbsoluteFill>
               {isVideo ? (
-                <OffthreadVideo
+                <Video
                   src={broll.url}
                   muted
                   style={mediaStyle}
-                  toneMapped={false}
                 />
               ) : (
                 <Img src={broll.url} style={mediaStyle} />
