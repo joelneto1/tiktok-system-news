@@ -56,13 +56,14 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
           width: '100%',
         }}
       >
-        {/* Video template banner (cropped to 300px) */}
+        {/* Video template banner (cropped to 460px, includes white bar, no black) */}
         {bannerTemplateUrl ? (
           <div
             style={{
               width: '100%',
-              height: 300,
+              height: 460,
               overflow: 'hidden',
+              position: 'relative',
             }}
           >
             <Loop durationInFrames={Math.round(85 * fps)}>
@@ -76,6 +77,35 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
                 }}
               />
             </Loop>
+            {/* Topic text overlaid on the white bar area */}
+            {topicText && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 20,
+                  left: 0,
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 40px',
+                }}
+              >
+                <span
+                  style={{
+                    color: '#111111',
+                    fontSize: 38,
+                    fontWeight: 800,
+                    fontFamily: 'Inter, Arial, sans-serif',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {topicText}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           /* Fallback CSS banner */
