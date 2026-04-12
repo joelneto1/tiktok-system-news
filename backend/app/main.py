@@ -60,6 +60,11 @@ if os.path.isdir(_frontend_dist):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        # Don't intercept API routes — let FastAPI handle them
+        if full_path.startswith("api/") or full_path == "api":
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Not found")
+
         file_path = os.path.join(_frontend_dist, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
