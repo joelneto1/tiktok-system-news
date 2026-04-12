@@ -69,7 +69,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
       style={{
         justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingTop: '38%',
+        paddingTop: '50%',
       }}
     >
       <div
@@ -87,7 +87,7 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
             key={lineIdx}
             style={{
               display: 'flex',
-              gap: 24,
+              gap: 12,
               justifyContent: 'center',
               flexWrap: 'wrap',
             }}
@@ -115,12 +115,10 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
                     transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
                     textTransform: 'uppercase',
                     display: 'inline-block',
-                    marginRight: 20,
-                    paddingLeft: 4,
-                    paddingRight: 4,
+                    marginRight: 0,
                   }}
                 >
-                  {word.word}{' '}
+                  {word.word}
                 </span>
               );
             })}
