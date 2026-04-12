@@ -83,11 +83,12 @@ async def compose_and_render(
         sfx_type = scene.get("sfx")
         if sfx_type and sfx_paths and sfx_type in sfx_paths:
             sfx_url = asset_manager.get_asset_url(sfx_paths[sfx_type])
+            start_frame = int(scene.get("start_time", 0) * fps)
             sfx.append(
                 {
-                    "type": sfx_type,
-                    "timestamp": scene.get("start_time", 0),
                     "url": sfx_url,
+                    "startFrame": start_frame,
+                    "volume": 0.35,
                 }
             )
 
