@@ -96,7 +96,7 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps & { bannerTemp
                     color: '#111111',
                     fontSize: 36,
                     fontWeight: 700,
-                    fontFamily: "Impact, 'Arial Narrow', Haettenschweiler, sans-serif",
+                    fontFamily: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif",
                     textAlign: 'center',
                     lineHeight: 1.2,
                     textTransform: 'uppercase',
