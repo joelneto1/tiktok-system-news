@@ -37,6 +37,7 @@ export const NewsTradicional: React.FC<CompositionProps> = (props) => {
 
       {/* Layer 2: Breaking News banner (video template + topic) */}
       <BreakingNewsBannerVideo
+        bannerTemplateUrl={(props as any).bannerTemplateUrl}
         topicText={props.topicText}
         fps={fps}
         durationInFrames={durationInFrames}

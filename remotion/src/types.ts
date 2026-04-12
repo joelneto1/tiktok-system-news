@@ -77,4 +77,6 @@ export interface CompositionProps extends Record<string, unknown> {
   topicText?: string;
   /** Keywords to highlight as urgent */
   urgentKeywords: string[];
+  /** URL to the breaking news video template */
+  bannerTemplateUrl?: string;
 }

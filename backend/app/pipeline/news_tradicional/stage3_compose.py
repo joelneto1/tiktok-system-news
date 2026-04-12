@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 
 from app.processing.asset_manager import asset_manager
+from app.services.minio_client import minio_client
 from app.utils.logger import logger
 
 
@@ -105,6 +106,21 @@ async def compose_and_render(
     )
     duration_in_frames = int(total_duration * fps)
 
+    # ── Banner template URL ────────────────────────────────────────────
+    banner_template_url = ""
+    banner_template_path = "templates/breaking-news-tradicional.mp4"
+    if not minio_client.object_exists(banner_template_path):
+        # Upload template from local file on first use
+        import os as _os
+        template_local = _os.path.normpath(
+            _os.path.join(_os.path.dirname(__file__), "..", "..", "..", "..", "remotion", "public", "breaking-news-template.mp4")
+        )
+        if _os.path.isfile(template_local):
+            minio_client.upload_from_file(banner_template_path, template_local, "video/mp4")
+            logger.info("[Stage 3] Uploaded banner template to MinIO")
+    if minio_client.object_exists(banner_template_path):
+        banner_template_url = asset_manager.get_asset_url(banner_template_path)
+
     # ── Build composition props ──────────────────────────────────────
     composition_props = {
         "jobId": job_id,
@@ -121,6 +137,7 @@ async def compose_and_render(
         "sfx": sfx,
         "musicUrl": music_url,
         "bannerText": "BREAKING NEWS",
+        "bannerTemplateUrl": banner_template_url,
         "topicText": topic[:120] if topic else (script.split('\n')[0][:120] if script else ""),
         "urgentKeywords": broll_data.get("urgent_keywords", []),
     }

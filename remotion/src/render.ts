@@ -55,6 +55,7 @@ const CompositionPropsSchema = z.object({
   bannerText: z.string().default('BREAKING NEWS'),
   topicText: z.string().optional(),
   urgentKeywords: z.array(z.string()).default([]),
+  bannerTemplateUrl: z.string().optional(),
 });
 
 // ---------------------------------------------------------------------------
