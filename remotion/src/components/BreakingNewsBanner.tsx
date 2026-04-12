@@ -8,23 +8,19 @@ import {
 } from 'remotion';
 
 interface BreakingNewsBannerProps {
-  /** Primary banner text, e.g. "BREAKING NEWS" */
   bannerText: string;
-  /** Topic headline shown below the red banner — stays FIXED */
   topicText?: string;
-  /** Keywords (unused — topic stays static) */
   urgentKeywords: string[];
   fps: number;
 }
 
 /**
- * Layer 2: Animated BREAKING NEWS banner.
+ * Layer 2: Large BREAKING NEWS banner (matches reference video size).
  *
- * - Slides in from top with spring animation.
- * - Large red gradient banner with pulsing glow.
- * - "BREAKING" in red box, "NEWS" in yellow box.
- * - Scrolling ticker underneath.
- * - White headline bar with FIXED topic text (no cycling).
+ * - Red gradient banner ~160px with large BREAKING/NEWS text
+ * - Blue "LIVE STREAMING" ticker bar ~40px
+ * - White headline bar ~110px with FIXED topic text
+ * - Total height: ~310px
  */
 export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
   bannerText,
@@ -34,19 +30,19 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
   const frame = useCurrentFrame();
   const { width } = useVideoConfig();
 
-  // ── Entry animation: slide down from top ──
+  // ── Entry animation ──
   const slideIn = spring({
     frame,
     fps,
     config: { damping: 15, stiffness: 120, mass: 0.8 },
   });
-  const translateY = interpolate(slideIn, [0, 1], [-250, 0]);
+  const translateY = interpolate(slideIn, [0, 1], [-350, 0]);
 
   // ── Pulsing glow ──
   const glowOpacity = interpolate(
     Math.sin(frame * 0.15),
     [-1, 1],
-    [0.7, 1],
+    [0.75, 1],
   );
 
   // ── Scrolling ticker ──
@@ -57,16 +53,16 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
     { extrapolateRight: 'extend' },
   );
 
-  // ── Headline: FIXED topic text ──
+  // ── Headline: FIXED topic ──
   const headlineText = topicText || bannerText || 'BREAKING NEWS';
 
-  // ── Headline entry (delayed spring) ──
+  // ── Headline delayed spring ──
   const headlineSlide = spring({
-    frame: frame - 8,
+    frame: frame - 10,
     fps,
     config: { damping: 18, stiffness: 100, mass: 0.6 },
   });
-  const headlineY = interpolate(headlineSlide, [0, 1], [-80, 0]);
+  const headlineY = interpolate(headlineSlide, [0, 1], [-100, 0]);
 
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-start' }}>
@@ -80,19 +76,19 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
         <div
           style={{
             width: '100%',
-            height: 120,
+            height: 160,
             background: 'linear-gradient(180deg, #DC2626 0%, #991B1B 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 16,
+            gap: 20,
             position: 'relative',
             overflow: 'hidden',
             opacity: glowOpacity,
-            boxShadow: '0 6px 24px rgba(220, 38, 38, 0.7)',
+            boxShadow: '0 6px 30px rgba(220, 38, 38, 0.7)',
           }}
         >
-          {/* Animated background pattern */}
+          {/* Animated pattern */}
           <div
             style={{
               position: 'absolute',
@@ -103,23 +99,34 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
             }}
           />
 
+          {/* World map dots pattern overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'radial-gradient(circle 2px, rgba(255,255,255,0.15) 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              opacity: 0.5,
+            }}
+          />
+
           {/* BREAKING */}
           <div
             style={{
               backgroundColor: '#B91C1C',
-              border: '3px solid #FCD34D',
-              borderRadius: 4,
-              padding: '8px 24px',
+              border: '4px solid #FCD34D',
+              borderRadius: 6,
+              padding: '10px 30px',
               zIndex: 1,
             }}
           >
             <span
               style={{
                 color: '#FFFFFF',
-                fontSize: 48,
+                fontSize: 64,
                 fontWeight: 900,
                 fontFamily: 'Inter, Arial Black, sans-serif',
-                letterSpacing: 5,
+                letterSpacing: 6,
                 textTransform: 'uppercase',
               }}
             >
@@ -131,18 +138,18 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
           <div
             style={{
               backgroundColor: '#FCD34D',
-              borderRadius: 4,
-              padding: '8px 24px',
+              borderRadius: 6,
+              padding: '10px 30px',
               zIndex: 1,
             }}
           >
             <span
               style={{
                 color: '#000000',
-                fontSize: 48,
+                fontSize: 64,
                 fontWeight: 900,
                 fontFamily: 'Inter, Arial Black, sans-serif',
-                letterSpacing: 5,
+                letterSpacing: 6,
                 textTransform: 'uppercase',
               }}
             >
@@ -151,30 +158,64 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
           </div>
         </div>
 
-        {/* ── Ticker line ── */}
+        {/* ── Blue ticker line (LIVE STREAMING) ── */}
         <div
           style={{
             width: '100%',
-            height: 32,
-            backgroundColor: '#7F1D1D',
+            height: 40,
+            background: 'linear-gradient(180deg, #1E3A5F 0%, #0F2340 100%)',
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
+            position: 'relative',
           }}
         >
           <div
             style={{
               whiteSpace: 'nowrap',
               transform: `translateX(${tickerOffset}px)`,
-              color: '#FCD34D',
+              color: '#FFFFFF',
               fontSize: 16,
               fontWeight: 700,
               fontFamily: 'Inter, Arial, sans-serif',
-              letterSpacing: 2,
+              letterSpacing: 3,
               textTransform: 'uppercase',
             }}
           >
-            {'★ BREAKING NEWS ★ LATEST UPDATE ★ BREAKING NEWS ★ LATEST UPDATE ★ BREAKING NEWS ★ LATEST UPDATE ★ BREAKING NEWS ★ LATEST UPDATE ★ '}
+            {'★ LIVE STREAMING ★ BREAKING NEWS ★ LATEST UPDATE ★ LIVE STREAMING ★ BREAKING NEWS ★ LATEST UPDATE ★ LIVE STREAMING ★ BREAKING NEWS ★ '}
+          </div>
+          {/* LIVE badge */}
+          <div
+            style={{
+              position: 'absolute',
+              right: 20,
+              backgroundColor: '#DC2626',
+              borderRadius: 4,
+              padding: '4px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: '#FFFFFF',
+                opacity: interpolate(Math.sin(frame * 0.2), [-1, 1], [0.3, 1]),
+              }}
+            />
+            <span
+              style={{
+                color: '#FFFFFF',
+                fontSize: 14,
+                fontWeight: 800,
+                letterSpacing: 1,
+              }}
+            >
+              LIVE
+            </span>
           </div>
         </div>
 
@@ -182,20 +223,20 @@ export const BreakingNewsBanner: React.FC<BreakingNewsBannerProps> = ({
         <div
           style={{
             width: '100%',
-            minHeight: 90,
+            minHeight: 110,
             backgroundColor: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '12px 36px',
+            padding: '16px 40px',
             transform: `translateY(${headlineY}px)`,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
           }}
         >
           <span
             style={{
               color: '#111111',
-              fontSize: 36,
+              fontSize: 42,
               fontWeight: 800,
               fontFamily: 'Inter, Arial, sans-serif',
               textAlign: 'center',
