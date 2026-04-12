@@ -9,14 +9,11 @@ interface CaptionsProps {
 }
 
 /**
- * Layer 3: Word-by-word synchronized captions.
+ * Layer 3: Word-by-word synchronized captions (karaoke style).
  *
- * - Positioned above the avatar's head (center, ~48% from bottom).
- * - Current word: yellow (#FFD700) with black stroke, slightly scaled up.
- * - Previous words in the same group: white with black stroke.
- * - Upcoming words in the same group: dimmed white.
- * - Shows a window of words grouped into lines of 4 words, 2 lines visible.
- * - Each word appears in sync with Whisper timestamps.
+ * - 2 words visible at a time
+ * - Current word: yellow, others: white
+ * - Positioned above avatar head (~55% from top)
  */
 export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
   const frame = useCurrentFrame();
@@ -46,7 +43,6 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
     }
   }
 
-  // If before any words, don't show captions
   if (currentWordIndex === -1) {
     return null;
   }
@@ -58,12 +54,6 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
   const groupStart = Math.floor(currentWordIndex / windowSize) * windowSize;
   const visibleWords = captions.slice(groupStart, groupStart + windowSize);
 
-  // Split into lines
-  const lines: CaptionWord[][] = [];
-  for (let i = 0; i < visibleWords.length; i += wordsPerLine) {
-    lines.push(visibleWords.slice(i, i + wordsPerLine));
-  }
-
   return (
     <AbsoluteFill
       style={{
@@ -74,55 +64,52 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
     >
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
+          textAlign: 'center',
           maxWidth: CAPTION_STYLE.maxWidth,
           padding: '0 40px',
         }}
       >
-        {lines.map((line, lineIdx) => (
-          <div
-            key={lineIdx}
-            style={{
-              display: 'flex',
-              gap: 20,
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            {line.map((word, wordIdx) => {
-              const globalIdx =
-                groupStart + lineIdx * wordsPerLine + wordIdx;
-              const isCurrent = globalIdx === currentWordIndex;
-              const isPast = globalIdx < currentWordIndex;
+        {visibleWords.map((word, idx) => {
+          const globalIdx = groupStart + idx;
+          const isCurrent = globalIdx === currentWordIndex;
+          const isPast = globalIdx < currentWordIndex;
 
-              return (
+          return (
+            <React.Fragment key={globalIdx}>
+              <span
+                style={{
+                  fontSize: CAPTION_STYLE.fontSize,
+                  fontWeight: CAPTION_STYLE.fontWeight,
+                  fontFamily: FONTS.caption,
+                  lineHeight: 1.3,
+                  color: isCurrent
+                    ? COLORS.captionYellow
+                    : isPast
+                      ? COLORS.captionWhite
+                      : COLORS.captionDimmed,
+                  textShadow: TEXT_STROKE_SHADOW,
+                  transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
+                  textTransform: 'uppercase',
+                  display: 'inline',
+                }}
+              >
+                {word.word}
+              </span>
+              {/* Space between words — always render a visible space */}
+              {idx < visibleWords.length - 1 && (
                 <span
-                  key={globalIdx}
                   style={{
                     fontSize: CAPTION_STYLE.fontSize,
-                    fontWeight: CAPTION_STYLE.fontWeight,
                     fontFamily: FONTS.caption,
-                    lineHeight: CAPTION_STYLE.lineHeight,
-                    color: isCurrent
-                      ? COLORS.captionYellow
-                      : isPast
-                        ? COLORS.captionWhite
-                        : COLORS.captionDimmed,
-                    textShadow: TEXT_STROKE_SHADOW,
-                    transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
-                    textTransform: 'uppercase',
-                    display: 'block',
+                    display: 'inline',
                   }}
                 >
-                  {word.word}
+                  {'\u00A0\u00A0'}
                 </span>
-              );
-            })}
-          </div>
-        ))}
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </AbsoluteFill>
   );
