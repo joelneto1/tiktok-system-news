@@ -35,6 +35,9 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
     objectFit: 'cover',
   };
 
+  // B-Rolls start below the banner area (460px from top)
+  const bannerHeight = 460;
+
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       {Array.from({ length: slotsNeeded }).map((_, i) => {
@@ -48,7 +51,7 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
 
         return (
           <Sequence key={i} from={from} durationInFrames={clipDuration}>
-            <AbsoluteFill>
+            <AbsoluteFill style={{ top: bannerHeight }}>
               {isVideo ? (
                 <Video
                   src={broll.url}
