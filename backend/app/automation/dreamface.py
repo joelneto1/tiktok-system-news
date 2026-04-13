@@ -69,55 +69,62 @@ class DreamFaceAutomation:
         )
 
         try:
-            self.logger.info("DreamFace: Starting avatar generation")
+            print("[DreamFace] Iniciando geracao do avatar...", flush=True)
 
-            # Step 1: Navigate to DreamFace domain first (needed to set localStorage)
-            if on_progress:
-                on_progress("Navigating to DreamFace...")
-
-            # Go to a simple page first to set localStorage for auth
+            # Step 1: Navigate
+            print("[DreamFace] 1/8 Navegando para DreamFace...", flush=True)
             await page.goto("https://www.dreamfaceapp.com/", wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_timeout(1000)
 
-            # Inject localStorage auth data from cookies (which contain localStorage JSON)
+            print("[DreamFace] 1/8 Injetando localStorage (autenticacao)...", flush=True)
             await self._inject_local_storage(page, cookies)
 
-            # Now navigate to avatar page with auth
             await page.goto(self.BASE_URL, wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(3000)
+            print(f"[DreamFace] 1/8 Pagina carregada: {page.url}", flush=True)
 
-            # Step 2: Accept cookies banner (if shown)
+            # Step 2: Accept cookies banner
+            print("[DreamFace] 2/8 Verificando banner de cookies...", flush=True)
             await self._accept_cookies(page)
 
-            # Step 3: Check if logged in
+            # Step 3: Check login
+            print("[DreamFace] 3/8 Verificando login...", flush=True)
             await self._ensure_logged_in(page)
 
             # Step 4: Upload reference video
+            print("[DreamFace] 4/8 Fazendo upload do video de referencia...", flush=True)
             if on_progress:
                 on_progress("Uploading reference video...")
             await self._upload_reference_video(page, reference_video_path)
+            print("[DreamFace] 4/8 Video de referencia enviado!", flush=True)
 
             # Step 5: Upload TTS audio
+            print("[DreamFace] 5/8 Fazendo upload do audio TTS...", flush=True)
             if on_progress:
                 on_progress("Uploading TTS audio...")
             await self._upload_audio(page, tts_audio_path)
+            print("[DreamFace] 5/8 Audio TTS enviado!", flush=True)
 
-            # Step 6: Click Generate — opens new tab
+            # Step 6: Click Generate
+            print("[DreamFace] 6/8 Clicando em Gerar...", flush=True)
             if on_progress:
                 on_progress("Starting generation...")
             creation_page = await self._click_generate(page)
+            print("[DreamFace] 6/8 Geracao iniciada!", flush=True)
 
-            # Step 7: Wait for completion on creation page
+            # Step 7: Wait for completion
+            print("[DreamFace] 7/8 Aguardando processamento (2-5 min)...", flush=True)
             if on_progress:
                 on_progress("Waiting for DreamFace to process (2-5 min)...")
             await self._wait_for_completion(creation_page, timeout, on_progress)
+            print("[DreamFace] 7/8 Processamento concluido!", flush=True)
 
             # Step 8: Download result
+            print("[DreamFace] 8/8 Baixando video resultado...", flush=True)
             if on_progress:
                 on_progress("Downloading result...")
             output_path = await self._download_result(creation_page)
-
-            self.logger.success(f"DreamFace: Avatar ready at {output_path}")
+            print(f"[DreamFace] 8/8 Video baixado: {output_path}", flush=True)
             return output_path
 
         except Exception as e:

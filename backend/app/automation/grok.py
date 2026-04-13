@@ -73,16 +73,15 @@ class GrokAutomation:
         results: dict[int, str] = {}
         failed_indices: list[int] = list(range(total))
 
-        self.logger.info(f"Grok: Starting batch generation of {total} videos (batch_size={batch_size})")
+        print(f"[Grok] Iniciando geracao de {total} videos (lote de {batch_size} tabs)", flush=True)
 
         for retry_round in range(max_retries + 1):
             if not failed_indices:
                 break
 
             if retry_round > 0:
-                self.logger.info(f"Grok: Retry round {retry_round} for {len(failed_indices)} failed videos")
+                print(f"[Grok] Tentativa {retry_round} para {len(failed_indices)} videos que falharam", flush=True)
 
-            # Process in batches
             batches = [
                 failed_indices[i:i + batch_size]
                 for i in range(0, len(failed_indices), batch_size)
@@ -91,7 +90,7 @@ class GrokAutomation:
             new_failed = []
 
             for batch_num, batch_indices in enumerate(batches):
-                self.logger.info(f"Grok: Batch {batch_num + 1}/{len(batches)} ({len(batch_indices)} tabs)")
+                print(f"[Grok] Lote {batch_num + 1}/{len(batches)} - Abrindo {len(batch_indices)} tabs...", flush=True)
 
                 batch_results = await self._process_batch(
                     prompts=[(idx, prompts[idx]) for idx in batch_indices],
@@ -104,21 +103,23 @@ class GrokAutomation:
                 for idx, path in batch_results.items():
                     if path:
                         results[idx] = path
+                        print(f"[Grok] Video {idx+1}/{total} gerado com sucesso!", flush=True)
                     else:
                         new_failed.append(idx)
+                        print(f"[Grok] Video {idx+1}/{total} FALHOU", flush=True)
 
                 completed = len(results)
                 if on_progress:
                     on_progress(completed, total, f"Batch {batch_num + 1}/{len(batches)} done")
 
-                self.logger.info(f"Grok: Progress: {completed}/{total} completed, {len(new_failed)} failed")
+                print(f"[Grok] Progresso: {completed}/{total} concluidos", flush=True)
 
             failed_indices = new_failed
 
         if failed_indices:
-            self.logger.warning(f"Grok: {len(failed_indices)} videos failed after all retries")
+            print(f"[Grok] AVISO: {len(failed_indices)} videos falharam apos todas tentativas", flush=True)
 
-        self.logger.success(f"Grok: Batch complete: {len(results)}/{total} successful")
+        print(f"[Grok] Concluido: {len(results)}/{total} videos gerados com sucesso!", flush=True)
         return results
 
     async def _process_batch(
