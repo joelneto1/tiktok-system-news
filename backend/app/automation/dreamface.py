@@ -119,10 +119,14 @@ class DreamFaceAutomation:
             await self._wait_for_completion(creation_page, timeout, on_progress, project_name=project_name)
             print("[DreamFace] 7/8 Processamento concluido!", flush=True)
 
-            # Step 8: Download result
-            print("[DreamFace] 8/8 Baixando video resultado...", flush=True)
+            # Step 8: Navigate to /creation page and download result
+            print("[DreamFace] 8/8 Navegando para /creation pra baixar resultado...", flush=True)
             if on_progress:
                 on_progress("Downloading result...")
+            # Navigate to the actual creation page (not /pt/creation)
+            await creation_page.goto("https://www.dreamfaceapp.com/creation", wait_until="networkidle", timeout=30000)
+            await creation_page.wait_for_timeout(5000)
+            print(f"[DreamFace] 8/8 Pagina /creation carregada: {creation_page.url}", flush=True)
             output_path = await self._download_result(creation_page, project_name=project_name)
             print(f"[DreamFace] 8/8 Video baixado: {output_path}", flush=True)
             return output_path
@@ -517,22 +521,28 @@ class DreamFaceAutomation:
 
         print(f"[DreamFace] Tentando baixar resultado (projeto: {search_term})...", flush=True)
 
-        # Reload the creation page and wait for content to load
-        print("[DreamFace] Recarregando pagina de criacao...", flush=True)
+        # Navigate to creation page and wait for content
+        print("[DreamFace] Navegando para /creation...", flush=True)
         try:
-            await page.reload(wait_until="networkidle")
+            await page.goto("https://www.dreamfaceapp.com/creation", wait_until="networkidle", timeout=30000)
             await page.wait_for_timeout(5000)
 
-            # Wait for content to appear (lazy loading)
-            for wait_attempt in range(6):
-                page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 300) || ""')
-                if len(page_text) > 50:
-                    print(f"[DreamFace] Pagina carregada ({len(page_text)} chars)", flush=True)
+            # Scroll down to trigger lazy loading
+            for scroll in range(5):
+                await page.evaluate('window.scrollBy(0, 500)')
+                await page.wait_for_timeout(1000)
+
+            # Wait for content to appear
+            for wait_attempt in range(10):
+                page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 500) || ""')
+                img_count = await page.evaluate('() => document.querySelectorAll("img").length')
+                if img_count > 5 or len(page_text) > 100:
+                    print(f"[DreamFace] Pagina carregada: {img_count} imagens, {len(page_text)} chars", flush=True)
                     break
-                print(f"[DreamFace] Aguardando conteudo carregar... ({(wait_attempt+1)*5}s)", flush=True)
-                await page.wait_for_timeout(5000)
+                print(f"[DreamFace] Aguardando conteudo... ({(wait_attempt+1)*3}s, imgs={img_count})", flush=True)
+                await page.wait_for_timeout(3000)
         except Exception as e:
-            print(f"[DreamFace] Reload falhou: {e}", flush=True)
+            print(f"[DreamFace] Navegacao falhou: {e}", flush=True)
 
         # Debug: page info
         try:
