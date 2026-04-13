@@ -13,8 +13,8 @@ class FFmpegProcessor:
         input_path: str,
         output_path: str,
         color: str = "00FF00",
-        similarity: float = 0.4,
-        blend: float = 0.05,
+        similarity: float = 0.3,
+        blend: float = 0.1,
     ) -> str:
         """Remove green screen background and add alpha channel.
 
@@ -22,18 +22,13 @@ class FFmpegProcessor:
             input_path: Path to input video with green screen.
             output_path: Path for output video with transparency.
             color: Hex color to remove (default green).
-            similarity: Color similarity threshold (0-1). Higher = more aggressive.
-            blend: Edge blending (0-1). Lower = sharper edges.
+            similarity: Color similarity threshold (0-1).
+            blend: Edge blending (0-1).
 
         Returns:
             Output path.
         """
-        # Crop bottom 5% to remove pedestal/base artifacts, then chromakey
-        vf_filter = (
-            f"crop=iw:ih*0.95:0:0,"
-            f"chromakey=0x{color}:{similarity}:{blend},"
-            f"despill=type=green"
-        )
+        vf_filter = f"chromakey=0x{color}:{similarity}:{blend}"
         cmd = [
             "ffmpeg",
             "-y",
