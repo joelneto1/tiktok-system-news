@@ -517,19 +517,36 @@ class DreamFaceAutomation:
 
         print(f"[DreamFace] Tentando baixar resultado (projeto: {search_term})...", flush=True)
 
-        # Debug: screenshot + page info before download attempts
+        # Reload the creation page and wait for content to load
+        print("[DreamFace] Recarregando pagina de criacao...", flush=True)
+        try:
+            await page.reload(wait_until="networkidle")
+            await page.wait_for_timeout(5000)
+
+            # Wait for content to appear (lazy loading)
+            for wait_attempt in range(6):
+                page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 300) || ""')
+                if len(page_text) > 50:
+                    print(f"[DreamFace] Pagina carregada ({len(page_text)} chars)", flush=True)
+                    break
+                print(f"[DreamFace] Aguardando conteudo carregar... ({(wait_attempt+1)*5}s)", flush=True)
+                await page.wait_for_timeout(5000)
+        except Exception as e:
+            print(f"[DreamFace] Reload falhou: {e}", flush=True)
+
+        # Debug: page info
         try:
             await page.screenshot(path="/tmp/dreamface_download_page.png")
             page_url = page.url
             page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 500) || ""')
             all_videos = await page.evaluate('() => { const v = document.querySelectorAll("video"); return Array.from(v).map(x => x.src || "no-src"); }')
-            all_links = await page.evaluate('() => { const a = document.querySelectorAll("a[href*=\\".mp4\\"]"); return Array.from(a).map(x => x.href); }')
-            print(f"[DreamFace] Download page URL: {page_url}", flush=True)
-            print(f"[DreamFace] Page text: {page_text[:200]}", flush=True)
-            print(f"[DreamFace] Videos on page: {all_videos}", flush=True)
-            print(f"[DreamFace] MP4 links: {all_links}", flush=True)
+            all_imgs = await page.evaluate('() => { const imgs = document.querySelectorAll("img"); return imgs.length; }')
+            print(f"[DreamFace] URL: {page_url}", flush=True)
+            print(f"[DreamFace] Text: {page_text[:200]}", flush=True)
+            print(f"[DreamFace] Videos: {all_videos}", flush=True)
+            print(f"[DreamFace] Imagens: {all_imgs}", flush=True)
         except Exception as e:
-            print(f"[DreamFace] Debug screenshot failed: {e}", flush=True)
+            print(f"[DreamFace] Debug falhou: {e}", flush=True)
 
         output_path = tempfile.mktemp(suffix=".mp4")
 
