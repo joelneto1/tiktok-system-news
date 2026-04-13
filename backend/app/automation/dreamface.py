@@ -305,16 +305,20 @@ class DreamFaceAutomation:
         else:
             print(f"[DreamFace] AVISO: Nenhum novo thumbnail! Upload pode ter falhado.", flush=True)
 
-        # Select thumbnail - FIRST (DreamFace shows newest first)
+        # Select thumbnail
         try:
             thumbs = page.locator("._imgStyle_m7pad_15")
             count = await thumbs.count()
             if count > 0:
-                # DreamFace shows newest uploads FIRST (position 0)
-                idx = 0
-                await thumbs.nth(idx).click()
-                await page.wait_for_timeout(1000)
-                print(f"[DreamFace] Thumbnail {idx+1}/{count} selecionado (primeiro = mais recente)", flush=True)
+                if count_after > count_before:
+                    # Upload funcionou — DreamFace auto-seleciona o novo arquivo
+                    # NÃO clicar em nenhum thumbnail pra não desfazer a seleção
+                    print(f"[DreamFace] Upload OK ({count_before}->{count_after}). Auto-selecionado pelo DreamFace.", flush=True)
+                else:
+                    # Upload falhou — selecionar o primeiro (mais recente existente)
+                    await thumbs.nth(0).click()
+                    await page.wait_for_timeout(1000)
+                    print(f"[DreamFace] Thumbnail 1/{count} selecionado (fallback)", flush=True)
 
                 # Take screenshot for debugging
                 await page.screenshot(path="/tmp/dreamface_thumb_selected.png")
