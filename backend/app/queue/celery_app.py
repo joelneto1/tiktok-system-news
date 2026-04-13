@@ -1,6 +1,7 @@
 import platform
 
 from celery import Celery
+from celery.signals import worker_process_init
 
 from app.config import settings
 
@@ -32,3 +33,10 @@ celery_app.conf.update(
 )
 
 celery_app.autodiscover_tasks(["app.queue"])
+
+
+@worker_process_init.connect
+def init_worker(**kwargs):
+    """Initialize loguru logger when Celery worker starts."""
+    from app.utils.logger import setup_logger
+    setup_logger(settings.LOG_LEVEL)
