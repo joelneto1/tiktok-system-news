@@ -517,6 +517,20 @@ class DreamFaceAutomation:
 
         print(f"[DreamFace] Tentando baixar resultado (projeto: {search_term})...", flush=True)
 
+        # Debug: screenshot + page info before download attempts
+        try:
+            await page.screenshot(path="/tmp/dreamface_download_page.png")
+            page_url = page.url
+            page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 500) || ""')
+            all_videos = await page.evaluate('() => { const v = document.querySelectorAll("video"); return Array.from(v).map(x => x.src || "no-src"); }')
+            all_links = await page.evaluate('() => { const a = document.querySelectorAll("a[href*=\\".mp4\\"]"); return Array.from(a).map(x => x.href); }')
+            print(f"[DreamFace] Download page URL: {page_url}", flush=True)
+            print(f"[DreamFace] Page text: {page_text[:200]}", flush=True)
+            print(f"[DreamFace] Videos on page: {all_videos}", flush=True)
+            print(f"[DreamFace] MP4 links: {all_links}", flush=True)
+        except Exception as e:
+            print(f"[DreamFace] Debug screenshot failed: {e}", flush=True)
+
         output_path = tempfile.mktemp(suffix=".mp4")
 
         # Strategy 1: Find OUR project's card and get its video URL
