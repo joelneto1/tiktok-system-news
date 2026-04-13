@@ -14,14 +14,15 @@ from app.utils.logger import logger
 def _log_to_db(video_id: str, stage: str, message: str, level: str = "INFO"):
     """Save a log entry to the database using SYNCHRONOUS connection."""
     try:
+        import uuid
         import psycopg2
         from app.config import settings
         db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").split("?")[0]
         conn = psycopg2.connect(db_url)
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO log_entries (video_id, stage, level, message) VALUES (%s, %s, %s, %s)",
-            (video_id, stage, level, message)
+            "INSERT INTO log_entries (id, video_id, stage, level, message) VALUES (%s, %s, %s, %s, %s)",
+            (str(uuid.uuid4()), video_id, stage, level, message)
         )
         conn.commit()
         cur.close()
