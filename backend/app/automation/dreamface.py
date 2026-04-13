@@ -227,17 +227,45 @@ class DreamFaceAutomation:
         count_before = await thumbs_before.count()
         print(f"[DreamFace] Thumbnails ANTES do upload: {count_before}", flush=True)
 
-        # Upload file via hidden file input (bypasses file picker)
+        # Upload file — try multiple approaches
+        uploaded = False
+
+        # Approach 1: Try all file inputs
         file_inputs = await page.query_selector_all('input[type="file"]')
-        if file_inputs:
-            await file_inputs[0].set_input_files(video_path)
-            print(f"[DreamFace] Arquivo enviado via input[type=file]: {video_path}", flush=True)
-        else:
-            await page.locator("body").set_input_files(video_path)
-            print(f"[DreamFace] Arquivo enviado via body: {video_path}", flush=True)
+        print(f"[DreamFace] Encontrou {len(file_inputs)} input[type=file]", flush=True)
+        for i, fi in enumerate(file_inputs):
+            try:
+                accept = await fi.get_attribute("accept") or ""
+                print(f"[DreamFace] Input {i}: accept='{accept}'", flush=True)
+                if "video" in accept or "image" in accept or not accept:
+                    await fi.set_input_files(video_path)
+                    print(f"[DreamFace] Arquivo enviado via input[{i}]", flush=True)
+                    uploaded = True
+                    break
+            except Exception as e:
+                print(f"[DreamFace] Input {i} falhou: {e}", flush=True)
+
+        # Approach 2: Use filechooser event
+        if not uploaded:
+            print("[DreamFace] Tentando via filechooser...", flush=True)
+            try:
+                # Find and click upload button
+                upload_btn = page.locator('[class*="upload"], [class*="Upload"], button:has-text("Upload"), button:has-text("Carregar")')
+                if await upload_btn.count() > 0:
+                    async with page.expect_file_chooser(timeout=5000) as fc_info:
+                        await upload_btn.first.click()
+                    file_chooser = await fc_info.value
+                    await file_chooser.set_files(video_path)
+                    print("[DreamFace] Arquivo enviado via filechooser", flush=True)
+                    uploaded = True
+            except Exception as e:
+                print(f"[DreamFace] Filechooser falhou: {e}", flush=True)
+
+        if not uploaded:
+            print("[DreamFace] AVISO: Nenhum metodo de upload funcionou!", flush=True)
 
         # Wait for upload to process
-        await page.wait_for_timeout(5000)
+        await page.wait_for_timeout(8000)
 
         # Count thumbnails AFTER upload
         thumbs_after = page.locator("._imgStyle_m7pad_15")
