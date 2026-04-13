@@ -36,13 +36,11 @@ class NewsTradicionalPipeline(BasePipeline):
     ) -> str:
         """Execute the complete pipeline. Returns MinIO path to final .mp4."""
 
+        print(f"[Pipeline] === Iniciando News Tradicional Pipeline ===", flush=True)
+        print(f"[Pipeline] Topico: {topic[:80]}", flush=True)
+        print(f"[Pipeline] Idioma: {language}, Voz: {voice_id or 'default'}", flush=True)
         self.logger.info("=== Starting News Tradicional Pipeline ===")
         self.logger.info("Topic: {topic}", topic=topic[:80])
-        self.logger.info(
-            "Language: {lang}, Voice: {voice}",
-            lang=language,
-            voice=voice_id or "default",
-        )
 
         # Save topic marker in MinIO for easy job identification
         import unicodedata, re
@@ -64,12 +62,13 @@ class NewsTradicionalPipeline(BasePipeline):
         )
         if existing_script:
             script = existing_script
-            self.logger.info("Resuming: script already exists ({n} chars)", n=len(script))
+            print(f"[Pipeline] Script ja existe no MinIO ({len(script)} chars) - PULANDO", flush=True)
             if on_stage_update:
                 await on_stage_update(
                     "stage1_script", "completed", f"Script resumed: {len(script)} chars"
                 )
         else:
+            print(f"[Pipeline] Gerando roteiro com IA...", flush=True)
             if on_stage_update:
                 await on_stage_update("stage1_script", "in_progress", "Generating script...")
 
@@ -98,12 +97,13 @@ class NewsTradicionalPipeline(BasePipeline):
         )
         if existing_tts:
             audio_path = existing_tts
-            self.logger.info("Resuming: TTS already exists at {p}", p=audio_path)
+            print(f"[Pipeline] TTS ja existe no MinIO - PULANDO", flush=True)
             if on_stage_update:
                 await on_stage_update(
                     "stage1_tts", "completed", f"TTS resumed: {audio_path}"
                 )
         else:
+            print(f"[Pipeline] Gerando narracao TTS...", flush=True)
             if on_stage_update:
                 await on_stage_update("stage1_tts", "in_progress", "Generating narration...")
 
@@ -129,9 +129,7 @@ class NewsTradicionalPipeline(BasePipeline):
         )
 
         if existing_avatar_raw and existing_avatar_webm:
-            self.logger.info(
-                "Resuming: avatar already exists in MinIO, skipping DreamFace"
-            )
+            print(f"[Pipeline] Avatar ja existe no MinIO - PULANDO DreamFace", flush=True)
             # Reconstruct avatar_data from existing assets
             from app.processing.ffmpeg import ffmpeg_processor
             import tempfile, os
@@ -240,14 +238,13 @@ class NewsTradicionalPipeline(BasePipeline):
             for i, key in enumerate(task_keys):
                 if isinstance(results[i], BaseException):
                     if key == "avatar":
-                        self.logger.warning(
-                            "Track A (Avatar) failed: {err}.",
-                            err=results[i],
-                        )
+                        print(f"[Pipeline] ERRO: Avatar (DreamFace) falhou: {results[i]}", flush=True)
                         if on_stage_update:
                             await on_stage_update(
                                 "stage2_avatar", "failed", str(results[i])[:200]
                             )
+                        # Avatar is MANDATORY — stop pipeline
+                        raise RuntimeError(f"Avatar generation failed (mandatory): {results[i]}")
                     elif key == "brolls":
                         self.logger.error(
                             "Track B (B-Rolls) failed: {err}", err=results[i]
