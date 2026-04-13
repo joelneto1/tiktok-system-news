@@ -15,17 +15,14 @@ from app.utils.activity_log import log_activity
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
-# Pipeline stage definitions
+# Pipeline stage definitions — names MUST match on_stage_update() calls in pipeline.py
 PIPELINE_STAGES = [
-    {"name": "script_generation", "description": "Generate news script with AI"},
-    {"name": "tts_synthesis", "description": "Text-to-speech audio synthesis"},
-    {"name": "avatar_generation", "description": "Generate avatar video with DreamFace"},
-    {"name": "broll_search", "description": "Search and download B-roll footage"},
-    {"name": "broll_download", "description": "Download B-roll video clips"},
-    {"name": "audio_analysis", "description": "Analyze audio for timing and cuts"},
-    {"name": "timeline_assembly", "description": "Assemble video timeline"},
-    {"name": "video_render", "description": "Render final video"},
-    {"name": "upload", "description": "Upload final video to storage"},
+    {"name": "stage1_script", "description": "Gerar roteiro com IA"},
+    {"name": "stage1_tts", "description": "Narracao TTS (texto para voz)"},
+    {"name": "stage2_avatar", "description": "Avatar DreamFace + Chromakey"},
+    {"name": "stage2_brolls", "description": "B-Rolls (Grok Imagine)"},
+    {"name": "stage3_render", "description": "Renderizacao final (Remotion)"},
+    {"name": "completed", "description": "Video finalizado e salvo"},
 ]
 
 

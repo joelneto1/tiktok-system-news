@@ -36,39 +36,30 @@ import { getVideoDownloadUrl, getVideoScript } from '@/api/videos'
 // ─── Stage config ───────────────────────────────────────────────
 
 const STAGE_ICONS: Record<string, typeof Zap> = {
-  script_generation: FileText,
-  tts_synthesis: Mic,
-  avatar_generation: Video,
-  broll_search: Search,
-  broll_download: Film,
-  audio_analysis: BarChart3,
-  timeline_assembly: Layers,
-  video_render: Play,
-  upload: Upload,
+  stage1_script: FileText,
+  stage1_tts: Mic,
+  stage2_avatar: Video,
+  stage2_brolls: Search,
+  stage3_render: Play,
+  completed: Upload,
 }
 
 const STAGE_LABELS: Record<string, string> = {
-  script_generation: 'Gerar Roteiro',
-  tts_synthesis: 'Narração TTS',
-  avatar_generation: 'Avatar DreamFace',
-  broll_search: 'B-Roll Busca',
-  broll_download: 'B-Roll Download',
-  audio_analysis: 'Análise de Áudio',
-  timeline_assembly: 'Montagem Timeline',
-  video_render: 'Render Final',
-  upload: 'Upload Storage',
+  stage1_script: 'Gerar Roteiro',
+  stage1_tts: 'Narração TTS',
+  stage2_avatar: 'Avatar DreamFace',
+  stage2_brolls: 'B-Rolls (Grok)',
+  stage3_render: 'Renderização Final',
+  completed: 'Video Finalizado',
 }
 
 const STAGE_SUBS: Record<string, string> = {
-  script_generation: 'OpenRouter API',
-  tts_synthesis: 'GenAIPro TTS',
-  avatar_generation: 'DreamFace + Chromakey',
-  broll_search: 'Grok Imagine',
-  broll_download: 'CDN download',
-  audio_analysis: 'Whisper + Scene Director',
-  timeline_assembly: 'Remotion composição',
-  video_render: 'Remotion render MP4',
-  upload: 'MinIO storage',
+  stage1_script: 'OpenRouter API',
+  stage1_tts: 'GenAIPro TTS',
+  stage2_avatar: 'DreamFace + Chromakey',
+  stage2_brolls: 'Whisper + Scene Director + Grok Imagine',
+  stage3_render: 'Remotion render 1080x1920',
+  completed: 'MinIO storage',
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
