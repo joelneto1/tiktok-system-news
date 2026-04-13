@@ -106,6 +106,11 @@ async def _run_pipeline(task, video_id: str, model_type: str) -> None:
             ref = ref_result.scalar_one_or_none()
             if ref:
                 reference_path = ref.minio_path
+                print(f"[Pipeline] Referencia: {ref.name} -> {reference_path}", flush=True)
+            else:
+                print(f"[Pipeline] AVISO: Reference ID {reference_id} nao encontrado no banco!", flush=True)
+        else:
+            print("[Pipeline] AVISO: Nenhuma referencia selecionada!", flush=True)
 
         # Load active SFX
         sfx_result = await db.execute(

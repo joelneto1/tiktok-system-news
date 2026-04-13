@@ -88,11 +88,11 @@ async def process_avatar(
         ref_local = os.path.join(tmp_dir, f"avatar_ref_{short_id}.mp4")
         audio_local = os.path.join(tmp_dir, f"news_{short_id}.mp3")
 
-        log("Baixando video de referencia do MinIO...")
+        log(f"Baixando video de referencia do MinIO: {reference_minio_path}")
         ref_data = minio_client.download_file(reference_minio_path)
         with open(ref_local, "wb") as f:
             f.write(ref_data)
-        log(f"Video de referencia: {len(ref_data)/1024/1024:.1f}MB")
+        log(f"Video de referencia baixado: {len(ref_data)/1024/1024:.1f}MB -> {ref_local}")
 
         log("Baixando audio TTS do MinIO...")
         audio_data = minio_client.download_file(tts_audio_minio_path)
