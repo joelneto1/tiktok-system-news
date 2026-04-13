@@ -169,8 +169,26 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
     setIsRefreshing(false)
   }
 
-  function handleDownload(jobId: string) {
-    window.open(getVideoDownloadUrl(jobId), '_blank')
+  async function handleDownload(jobId: string) {
+    try {
+      const token = localStorage.getItem('access_token')
+      const resp = await fetch(`/api/videos/${jobId}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        redirect: 'follow',
+      })
+      if (resp.ok) {
+        const blob = await resp.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `video_${jobId.slice(0, 8)}.mp4`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch {
+      // Fallback
+      window.open(getVideoDownloadUrl(jobId), '_blank')
+    }
   }
 
   async function handleScript(jobId: string, topic: string) {
