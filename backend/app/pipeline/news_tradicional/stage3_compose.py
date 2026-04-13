@@ -10,28 +10,21 @@ from app.utils.logger import logger
 
 
 def _log_to_db(video_id: str, stage: str, message: str, level: str = "INFO"):
-    """Save a log entry to the database synchronously (for render progress)."""
-    import asyncio
-    from app.database import async_session_factory
-    from app.models.log_entry import LogEntry
-
-    async def _save():
-        async with async_session_factory() as session:
-            entry = LogEntry(
-                video_id=video_id,
-                stage=stage,
-                level=level,
-                message=message,
-            )
-            session.add(entry)
-            await session.commit()
-
+    """Save a log entry to the database using SYNCHRONOUS connection."""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.ensure_future(_save())
-        else:
-            asyncio.run(_save())
+        import psycopg2
+        from app.config import settings
+        # Convert async URL to sync
+        db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").split("?")[0]
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO log_entries (video_id, stage, level, message) VALUES (%s, %s, %s, %s)",
+            (video_id, stage, level, message)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
     except Exception:
         pass  # Non-critical
 
