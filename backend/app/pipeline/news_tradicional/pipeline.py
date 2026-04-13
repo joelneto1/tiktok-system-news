@@ -44,6 +44,12 @@ class NewsTradicionalPipeline(BasePipeline):
             voice=voice_id or "default",
         )
 
+        # Save topic marker in MinIO for easy job identification
+        asset_manager.save_asset(
+            self.job_id, "", f"_topic_{topic[:60].replace('/', '-').replace(' ', '_')}.txt",
+            topic.encode(), "text/plain",
+        )
+
         # ── STAGE 1a: Script ─────────────────────────────────────────
         # Check if script already exists (resume support)
         existing_script = asset_manager.try_download_text(

@@ -70,7 +70,7 @@ async def compose_and_render(
         except Exception:
             pass
 
-    logger.info("[Stage 3] Downloading assets to public/ for staticFile()...")
+    print("[Stage 3] Downloading assets to public/ for staticFile()...", flush=True)
 
     # ── Download TTS audio ──────────────────────────────────────
     tts_filename = _download_to_public(tts_audio_minio_path, assets_dir, "tts_audio.mp3")
@@ -245,11 +245,13 @@ async def compose_and_render(
                 line = line.rstrip()
                 stderr_lines.append(line)
                 if "[render]" in line:
-                    logger.info("{line}", line=line)
+                    # Use print + flush so Celery captures it in logs
+                    import sys
+                    print(f"[Stage 3] {line}", file=sys.stderr, flush=True)
             proc.wait(timeout=900)
         except subprocess.TimeoutExpired:
             proc.kill()
-            logger.error("[Stage 3] Render timed out (attempt {a})", a=attempt)
+            print(f"[Stage 3] Render timed out (attempt {attempt})", flush=True)
             if attempt < max_retries:
                 import time
                 time.sleep(5)
@@ -257,10 +259,11 @@ async def compose_and_render(
             raise RuntimeError("[Stage 3] Remotion render timed out after all retries")
 
         if proc.returncode == 0 and os.path.exists(output_file):
+            print(f"[Stage 3] Render completed successfully!", flush=True)
             break  # Success
 
         stderr_full = "\n".join(stderr_lines)
-        logger.error("[Stage 3] Render failed (attempt {a}): {err}", a=attempt, err=stderr_full[-1000:])
+        print(f"[Stage 3] Render failed (attempt {attempt}): {stderr_full[-500:]}", flush=True)
 
         if attempt < max_retries:
             import time

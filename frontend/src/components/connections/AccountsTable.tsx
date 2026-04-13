@@ -28,6 +28,25 @@ const STATUS_STYLES: Record<string, string> = {
   DISCONNECTED: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
 }
 
+type CookieExpStatus = 'expired' | 'expiring_soon' | 'valid'
+
+function getCookieExpStatus(cookieExp: string): CookieExpStatus {
+  if (!cookieExp || cookieExp === '--') return 'expired'
+  const expDate = new Date(cookieExp)
+  if (isNaN(expDate.getTime())) return 'expired'
+  const now = new Date()
+  if (expDate <= now) return 'expired'
+  const msIn24h = 24 * 60 * 60 * 1000
+  if (expDate.getTime() - now.getTime() <= msIn24h) return 'expiring_soon'
+  return 'valid'
+}
+
+function getEffectiveStatus(account: Account): Account['status'] {
+  const cookieStatus = getCookieExpStatus(account.cookieExp)
+  if (cookieStatus === 'expired') return 'EXPIRED'
+  return account.status
+}
+
 export default function AccountsTable({
   accounts,
   onToggle,
@@ -122,18 +141,40 @@ export default function AccountsTable({
                   <td className="px-4 py-3 text-text-secondary font-mono text-xs">
                     {account.proxy}
                   </td>
-                  <td className="px-4 py-3 text-text-secondary font-mono text-xs">
-                    {account.cookieExp}
+                  <td className="px-4 py-3 font-mono text-xs">
+                    {(() => {
+                      const expStatus = getCookieExpStatus(account.cookieExp)
+                      if (expStatus === 'expired') {
+                        return (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-red-500/10 text-red-400 border-red-500/20">
+                            EXPIRADO
+                          </span>
+                        )
+                      }
+                      if (expStatus === 'expiring_soon') {
+                        return (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-orange-500/10 text-orange-400 border-orange-500/20">
+                            EXPIRA EM BREVE
+                          </span>
+                        )
+                      }
+                      return <span className="text-green-400">{account.cookieExp}</span>
+                    })()}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
-                        STATUS_STYLES[account.status] ?? STATUS_STYLES.DISCONNECTED,
-                      )}
-                    >
-                      {account.status}
-                    </span>
+                    {(() => {
+                      const effectiveStatus = getEffectiveStatus(account)
+                      return (
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
+                            STATUS_STYLES[effectiveStatus] ?? STATUS_STYLES.DISCONNECTED,
+                          )}
+                        >
+                          {effectiveStatus}
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">

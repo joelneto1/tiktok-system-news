@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -12,6 +13,27 @@ from app.models.user import User
 from app.schemas.connection import AccountCreate, AccountOut, AccountUpdate
 from app.utils.activity_log import log_activity
 from app.utils.crypto import encrypt_value
+
+
+def _extract_cookie_expiry(cookies_json: str) -> datetime | None:
+    """Extract the earliest auth cookie expiration from a cookies JSON string."""
+    try:
+        cookies = json.loads(cookies_json)
+        if not isinstance(cookies, list):
+            return None
+        # Look for auth cookies (sso, sso-rw, token)
+        auth_names = {"sso", "sso-rw", "token"}
+        min_exp = None
+        for c in cookies:
+            name = c.get("name", "")
+            exp = c.get("expirationDate", 0)
+            if name in auth_names and exp:
+                exp_dt = datetime.fromtimestamp(exp, tz=timezone.utc)
+                if min_exp is None or exp_dt < min_exp:
+                    min_exp = exp_dt
+        return min_exp
+    except Exception:
+        return None
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
@@ -60,6 +82,7 @@ async def add_account(
     """Add a new connection account."""
     # Encrypt cookies if provided
     cookies_encrypted = encrypt_value(data.cookies_json) if data.cookies_json else None
+    cookie_exp = _extract_cookie_expiry(data.cookies_json) if data.cookies_json else None
 
     account = ConnectionAccount(
         service=data.service,
@@ -67,6 +90,7 @@ async def add_account(
         account_type=data.account_type,
         cookies_json=cookies_encrypted,
         proxy_url=data.proxy_url,
+        cookie_expires_at=cookie_exp,
         status="active" if data.cookies_json else "disconnected",
     )
     db.add(account)
@@ -113,6 +137,7 @@ async def update_account(
         account.is_active = data.is_active
     if data.cookies_json is not None:
         account.cookies_json = encrypt_value(data.cookies_json)
+        account.cookie_expires_at = _extract_cookie_expiry(data.cookies_json)
     if data.proxy_url is not None:
         account.proxy_url = data.proxy_url
     if data.account_type is not None:
