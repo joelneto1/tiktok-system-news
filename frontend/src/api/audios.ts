@@ -15,9 +15,7 @@ export async function uploadAudio(file: File, name?: string): Promise<Background
   const formData = new FormData()
   formData.append('file', file)
   if (name) formData.append('name', name)
-  const { data } = await apiClient.post<BackgroundAudio>('/audios/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await apiClient.post<BackgroundAudio>('/audios/upload', formData)
   return data
 }
 

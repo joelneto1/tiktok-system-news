@@ -22,7 +22,6 @@ export async function uploadReference(file: File, name?: string): Promise<Refere
     formData.append('name', name)
   }
   const { data } = await apiClient.post<Reference>('/references/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 120000, // 2 minutes for large video uploads
   })
   return data

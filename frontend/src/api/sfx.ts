@@ -17,9 +17,7 @@ export async function uploadSfx(file: File, name: string, sfxType: string): Prom
   formData.append('file', file)
   formData.append('name', name)
   formData.append('sfx_type', sfxType)
-  const { data } = await apiClient.post<SoundEffect>('/sfx/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await apiClient.post<SoundEffect>('/sfx/upload', formData)
   return data
 }
 
