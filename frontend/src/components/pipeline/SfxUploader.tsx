@@ -234,7 +234,7 @@ export default function SfxUploader({ className }: SfxUploaderProps) {
 
   async function handleUpload(sfxType: string, label: string, file: File) {
     const blobUrl = URL.createObjectURL(file)
-    const tempId = `temp_${crypto.randomUUID()}`
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
     // 1. Show instantly (optimistic)
     const tempSfx: SfxFile = {

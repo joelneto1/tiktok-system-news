@@ -90,7 +90,7 @@ export default function ReferenceUploader({
 
     for (const file of validFiles) {
       const blobUrl = URL.createObjectURL(file)
-      const tempId = `temp_${crypto.randomUUID()}`
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
       // 1. Show instantly in gallery
       onReferencesChange((prev) => [...prev, {
