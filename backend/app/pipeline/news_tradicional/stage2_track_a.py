@@ -109,9 +109,6 @@ async def process_avatar(
         await ffmpeg_processor.chromakey(
             input_path=raw_avatar_path,
             output_path=chromakey_output,
-            color="00FF00",
-            similarity=0.3,
-            blend=0.1,
         )
 
         print("[Track A] Chromakey concluido! Convertendo para WebM com alpha...", flush=True)
