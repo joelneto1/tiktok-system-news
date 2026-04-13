@@ -113,7 +113,7 @@ async def process_avatar(
             proxy=proxy,
             reference_video_path=ref_local,
             tts_audio_path=audio_local,
-            project_name=f"News: {topic[:50]}",
+            project_name=f"News {job_id[:8]}: {topic[:40]}",
             timeout=600,
             on_progress=df_progress,
         )

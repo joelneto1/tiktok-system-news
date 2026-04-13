@@ -233,14 +233,19 @@ class DreamFaceAutomation:
             self.logger.info("DreamFace: Reference video file set via body")
         await page.wait_for_timeout(3000)
 
-        # Select the uploaded video (first thumbnail with class _imgStyle_m7pad_15)
+        # Select the LAST uploaded video (most recent = the one we just uploaded)
         try:
-            first_thumb = page.locator("._imgStyle_m7pad_15").first
-            await first_thumb.click()
-            await page.wait_for_timeout(1000)
-            self.logger.info("DreamFace: Reference video selected")
+            thumbs = page.locator("._imgStyle_m7pad_15")
+            count = await thumbs.count()
+            if count > 0:
+                # Click the LAST thumbnail (most recently uploaded)
+                await thumbs.nth(count - 1).click()
+                await page.wait_for_timeout(1000)
+                print(f"[DreamFace] Video selecionado: thumbnail {count}/{count} (ultimo upado)", flush=True)
+            else:
+                print("[DreamFace] AVISO: Nenhum thumbnail encontrado", flush=True)
         except Exception as e:
-            self.logger.warning(f"DreamFace: Could not select thumbnail: {e}")
+            print(f"[DreamFace] Erro ao selecionar thumbnail: {e}", flush=True)
 
     async def _upload_audio(self, page: Page, audio_path: str):
         """Upload the TTS audio file.
