@@ -119,14 +119,14 @@ class DreamFaceAutomation:
             await self._wait_for_completion(creation_page, timeout, on_progress, project_name=project_name)
             print("[DreamFace] 7/8 Processamento concluido!", flush=True)
 
-            # Step 8: Navigate to /creation page and download result
-            print("[DreamFace] 8/8 Navegando para /creation pra baixar resultado...", flush=True)
+            # Step 8: Download result from the creation tab (same tab that "Gerar" opened)
+            print("[DreamFace] 8/8 Baixando video resultado...", flush=True)
             if on_progress:
                 on_progress("Downloading result...")
-            # Navigate to the actual creation page (not /pt/creation)
-            await creation_page.goto("https://www.dreamfaceapp.com/creation", wait_until="networkidle", timeout=30000)
+            # Reload the creation page to ensure video is loaded
+            await creation_page.reload(wait_until="networkidle")
             await creation_page.wait_for_timeout(5000)
-            print(f"[DreamFace] 8/8 Pagina /creation carregada: {creation_page.url}", flush=True)
+            print(f"[DreamFace] 8/8 Pagina recarregada: {creation_page.url}", flush=True)
             output_path = await self._download_result(creation_page, project_name=project_name)
             print(f"[DreamFace] 8/8 Video baixado: {output_path}", flush=True)
             return output_path
@@ -509,158 +509,86 @@ class DreamFaceAutomation:
         )
 
     async def _download_result(self, page: Page, project_name: str = "") -> str:
-        """Download the result video from DreamFace creation page.
-        Finds our project by name to avoid downloading wrong video.
+        """Download the result video from DreamFace /creation page.
+        Navigates to /creation, finds our project by audio name, clicks img to open modal,
+        gets video.src CDN URL, downloads via httpx.
         """
-        # Extract search term from project name
+        # The audio name is news_{job_id[:8]}.mp3
+        # Extract job_id from project_name: "News 6687e936: topic..."
         search_term = ""
         if project_name:
             parts = project_name.split(":")
             if parts:
-                search_term = parts[0].strip()
+                # "News 6687e936" -> search for "news_6687e936"
+                search_term = parts[0].strip().replace("News ", "news_")
 
         print(f"[DreamFace] Tentando baixar resultado (projeto: {search_term})...", flush=True)
 
-        # Navigate to creation page and wait for content
-        print("[DreamFace] Navegando para /creation...", flush=True)
-        try:
-            await page.goto("https://www.dreamfaceapp.com/creation", wait_until="networkidle", timeout=30000)
-            await page.wait_for_timeout(5000)
-
-            # Scroll down to trigger lazy loading
-            for scroll in range(5):
-                await page.evaluate('window.scrollBy(0, 500)')
-                await page.wait_for_timeout(1000)
-
-            # Wait for content to appear
-            for wait_attempt in range(10):
-                page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 500) || ""')
-                img_count = await page.evaluate('() => document.querySelectorAll("img").length')
-                if img_count > 5 or len(page_text) > 100:
-                    print(f"[DreamFace] Pagina carregada: {img_count} imagens, {len(page_text)} chars", flush=True)
-                    break
-                print(f"[DreamFace] Aguardando conteudo... ({(wait_attempt+1)*3}s, imgs={img_count})", flush=True)
-                await page.wait_for_timeout(3000)
-        except Exception as e:
-            print(f"[DreamFace] Navegacao falhou: {e}", flush=True)
-
-        # Debug: page info
-        try:
-            await page.screenshot(path="/tmp/dreamface_download_page.png")
-            page_url = page.url
-            page_text = await page.evaluate('() => document.body?.innerText?.substring(0, 500) || ""')
-            all_videos = await page.evaluate('() => { const v = document.querySelectorAll("video"); return Array.from(v).map(x => x.src || "no-src"); }')
-            all_imgs = await page.evaluate('() => { const imgs = document.querySelectorAll("img"); return imgs.length; }')
-            print(f"[DreamFace] URL: {page_url}", flush=True)
-            print(f"[DreamFace] Text: {page_text[:200]}", flush=True)
-            print(f"[DreamFace] Videos: {all_videos}", flush=True)
-            print(f"[DreamFace] Imagens: {all_imgs}", flush=True)
-        except Exception as e:
-            print(f"[DreamFace] Debug falhou: {e}", flush=True)
-
         output_path = tempfile.mktemp(suffix=".mp4")
 
-        # Strategy 1: Find OUR project's card and get its video URL
+        # Step 1: Navigate to /creation page
+        print("[DreamFace] Navegando para /creation...", flush=True)
+        await page.goto("https://www.dreamfaceapp.com/creation", wait_until="networkidle", timeout=30000)
+        await page.wait_for_timeout(5000)
+
+        img_count = await page.evaluate('() => document.querySelectorAll("img").length')
+        print(f"[DreamFace] Pagina /creation carregada: {img_count} imagens", flush=True)
+
+        # Step 2: Find our card by name and click the IMG to open modal
         for attempt in range(5):
-            video_url = await page.evaluate('''(searchTerm) => {
-                // Look for our project card by name
-                const allCards = document.querySelectorAll('[class*="creationList"] > *, [class*="creation"] [class*="card"], [class*="item"]');
-                for (const card of allCards) {
-                    const text = card.innerText || '';
-                    if (searchTerm && !text.includes(searchTerm)) continue;
-
-                    // Found our card — look for video
-                    const video = card.querySelector('video');
-                    if (video && video.src) return video.src;
-
-                    // Try clicking the card to open modal
-                    const clickable = card.querySelector('img, [class*="operate"]');
-                    if (clickable) clickable.click();
-                    else card.click();
-                    return '__CLICKED__';
+            clicked = await page.evaluate('''(searchTerm) => {
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                while (walker.nextNode()) {
+                    if (walker.currentNode.textContent.includes(searchTerm)) {
+                        let el = walker.currentNode.parentElement;
+                        for (let i = 0; i < 5; i++) {
+                            if (el.parentElement) el = el.parentElement;
+                            const img = el.querySelector('img');
+                            if (img) { img.click(); return 'clicked_img'; }
+                        }
+                    }
                 }
-
-                // Fallback: any video on page
-                const videos = document.querySelectorAll('video');
-                for (const v of videos) {
-                    if (v.src && v.src.includes('http')) return v.src;
-                }
-                return null;
+                return 'not_found';
             }''', search_term)
 
-            if video_url and video_url != '__CLICKED__' and video_url.startswith('http'):
-                print(f"[DreamFace] URL do video encontrada: {video_url[:80]}...", flush=True)
-                async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-                    resp = await client.get(video_url)
-                    resp.raise_for_status()
-                    with open(output_path, "wb") as f:
-                        f.write(resp.content)
-                size_mb = os.path.getsize(output_path) / (1024 * 1024)
-                if size_mb > 0.1:
-                    print(f"[DreamFace] Video baixado: {size_mb:.1f}MB", flush=True)
-                    return output_path
+            print(f"[DreamFace] Tentativa {attempt+1}/5: {clicked}", flush=True)
 
-            if video_url == '__CLICKED__':
-                print(f"[DreamFace] Tentativa {attempt+1}/5: clicou no card, aguardando modal...", flush=True)
-                await page.wait_for_timeout(5000)
+            if clicked == 'clicked_img':
+                # Wait for modal to load
+                await page.wait_for_timeout(8000)
 
-                # After click, check for video in modal
-                modal_video = await page.evaluate('''() => {
+                # Get video.src from modal
+                video_url = await page.evaluate('''() => {
                     const video = document.querySelector('video');
                     if (video && video.src) return video.src;
+                    if (video && video.currentSrc) return video.currentSrc;
                     return null;
                 }''')
-                if modal_video:
-                    print(f"[DreamFace] Video no modal: {modal_video[:80]}...", flush=True)
+
+                if video_url:
+                    print(f"[DreamFace] CDN URL encontrada: {video_url[:80]}...", flush=True)
                     async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-                        resp = await client.get(modal_video)
+                        resp = await client.get(video_url)
                         resp.raise_for_status()
                         with open(output_path, "wb") as f:
                             f.write(resp.content)
                     size_mb = os.path.getsize(output_path) / (1024 * 1024)
                     if size_mb > 0.1:
-                        print(f"[DreamFace] Video baixado do modal: {size_mb:.1f}MB", flush=True)
+                        print(f"[DreamFace] Video baixado: {size_mb:.1f}MB", flush=True)
                         return output_path
+                    else:
+                        print(f"[DreamFace] Arquivo muito pequeno ({size_mb:.1f}MB), tentando novamente...", flush=True)
+                else:
+                    print(f"[DreamFace] Modal aberto mas video.src nao encontrado, tentando novamente...", flush=True)
+                    # Close modal and try again
+                    await page.keyboard.press("Escape")
+                    await page.wait_for_timeout(2000)
             else:
-                print(f"[DreamFace] Tentativa {attempt+1}/5: video nao encontrado", flush=True)
-                await page.wait_for_timeout(5000)
+                print(f"[DreamFace] Card '{search_term}' nao encontrado, scrollando...", flush=True)
+                await page.evaluate('window.scrollBy(0, 500)')
+                await page.wait_for_timeout(3000)
 
-        # Strategy 2: Try download button
-        print("[DreamFace] Tentando botao de download...", flush=True)
-        for btn_name in ["Baixar", "Download", "Descargar"]:
-            try:
-                btn = page.get_by_role("button", name=btn_name)
-                if await btn.count() > 0:
-                    async with page.expect_download(timeout=30000) as download_info:
-                        await btn.click()
-                    download = await download_info.value
-                    await download.save_as(output_path)
-                    size_mb = os.path.getsize(output_path) / (1024 * 1024)
-                    if size_mb > 0.1:
-                        print(f"[DreamFace] Baixado via botao {btn_name}: {size_mb:.1f}MB", flush=True)
-                        return output_path
-            except Exception:
-                continue
-
-        # Strategy 3: Try any download link
-        print("[DreamFace] Tentando links de download na pagina...", flush=True)
-        download_url = await page.evaluate('''() => {
-            const links = document.querySelectorAll('a[download], a[href*="download"], a[href*=".mp4"]');
-            for (const l of links) { if (l.href) return l.href; }
-            return null;
-        }''')
-        if download_url:
-            async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-                resp = await client.get(download_url)
-                resp.raise_for_status()
-                with open(output_path, "wb") as f:
-                    f.write(resp.content)
-                return output_path
-
-        raise RuntimeError("DreamFace: Nao foi possivel baixar o video resultado")
-
-        size_mb = os.path.getsize(output_path) / (1024 * 1024)
-        self.logger.success(f"DreamFace: Downloaded {size_mb:.1f}MB to {output_path}")
+        raise RuntimeError(f"DreamFace: Nao foi possivel baixar o video '{search_term}' apos 5 tentativas")
         return output_path
 
 
