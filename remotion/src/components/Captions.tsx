@@ -86,8 +86,8 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
                   ? COLORS.captionYellow
                   : COLORS.captionWhite,
                 textShadow: TEXT_STROKE_SHADOW,
-                transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
-                textTransform: 'uppercase',
+                transform: isCurrent ? 'scale(1.05)' : 'scale(1)',
+                fontStyle: isCurrent ? 'italic' : 'normal',
                 display: 'inline',
               }}
             >

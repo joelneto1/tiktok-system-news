@@ -42,12 +42,16 @@ export const BANNER_STYLE = {
  * CSS text-shadow that simulates a thick black stroke around text.
  */
 export const TEXT_STROKE_SHADOW = `
-  -3px -3px 0 ${COLORS.captionStroke},
-   3px -3px 0 ${COLORS.captionStroke},
-  -3px  3px 0 ${COLORS.captionStroke},
-   3px  3px 0 ${COLORS.captionStroke},
-  -3px  0   0 ${COLORS.captionStroke},
-   3px  0   0 ${COLORS.captionStroke},
-   0   -3px 0 ${COLORS.captionStroke},
-   0    3px 0 ${COLORS.captionStroke}
+  -4px -4px 0 ${COLORS.captionStroke},
+   4px -4px 0 ${COLORS.captionStroke},
+  -4px  4px 0 ${COLORS.captionStroke},
+   4px  4px 0 ${COLORS.captionStroke},
+  -4px  0   0 ${COLORS.captionStroke},
+   4px  0   0 ${COLORS.captionStroke},
+   0   -4px 0 ${COLORS.captionStroke},
+   0    4px 0 ${COLORS.captionStroke},
+  -2px -2px 0 ${COLORS.captionStroke},
+   2px -2px 0 ${COLORS.captionStroke},
+  -2px  2px 0 ${COLORS.captionStroke},
+   2px  2px 0 ${COLORS.captionStroke}
 `.trim();
