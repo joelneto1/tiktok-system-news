@@ -216,9 +216,12 @@ async def compose_and_render(
     )
 
     if proc.returncode != 0:
-        error_tail = proc.stderr[-500:] if proc.stderr else "(no stderr)"
-        logger.error("[Stage 3] Remotion render failed: {err}", err=error_tail)
-        raise RuntimeError(f"Remotion render failed: {error_tail}")
+        stderr_full = proc.stderr or "(no stderr)"
+        stdout_full = proc.stdout or "(no stdout)"
+        logger.error("[Stage 3] Remotion STDERR: {err}", err=stderr_full[-2000:])
+        logger.error("[Stage 3] Remotion STDOUT: {out}", out=stdout_full[-500:])
+        logger.error("[Stage 3] Remotion exit code: {code}", code=proc.returncode)
+        raise RuntimeError(f"Remotion render failed: {stderr_full[-1000:]}")
 
     if not os.path.exists(output_file):
         raise RuntimeError("[Stage 3] Render completed but output file not found")

@@ -56,7 +56,6 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
                 <Video
                   src={broll.url}
                   muted
-                  pauseWhenBuffering
                   style={mediaStyle}
                 />
               ) : (
