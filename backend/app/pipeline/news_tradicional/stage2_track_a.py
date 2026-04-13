@@ -11,6 +11,27 @@ from app.services.minio_client import minio_client
 from app.utils.logger import logger
 
 
+def _log_to_db(video_id: str, stage: str, message: str, level: str = "INFO"):
+    """Save a log entry to the database (for frontend visibility)."""
+    import asyncio
+    from app.models.log_entry import LogEntry
+
+    async def _save():
+        async with async_session_factory() as session:
+            entry = LogEntry(video_id=video_id, stage=stage, level=level, message=message)
+            session.add(entry)
+            await session.commit()
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(_save())
+        else:
+            asyncio.run(_save())
+    except Exception:
+        pass
+
+
 async def process_avatar(
     job_id: str,
     reference_minio_path: str,
@@ -44,10 +65,14 @@ async def process_avatar(
         - avatar_raw_path: MinIO path to raw DreamFace output
         - duration: Avatar video duration in seconds
     """
-    print("[Track A] Iniciando processamento do avatar...", flush=True)
+    def log(msg, level="INFO"):
+        print(f"[Track A] {msg}", flush=True)
+        _log_to_db(job_id, "stage2_avatar", f"[Avatar] {msg}", level)
+
+    log("Iniciando processamento do avatar...")
 
     # Step 1: Get DreamFace account
-    print("[Track A] Buscando conta DreamFace...", flush=True)
+    log("Buscando conta DreamFace...")
     async with async_session_factory() as fresh_db:
         account = await account_rotator.get_next_account("dreamface", fresh_db)
         if not account:
@@ -55,28 +80,28 @@ async def process_avatar(
         cookies = await account_rotator.get_account_cookies(account)
         proxy = await account_rotator.get_account_proxy(account)
 
-    print(f"[Track A] Conta DreamFace: {account.account_name}", flush=True)
+    log(f"Conta DreamFace: {account.account_name}")
 
     tmp_dir = tempfile.mkdtemp(prefix=f"dreamface_{job_id}_")
 
     try:
-        # Step 2: Download assets from MinIO
         short_id = job_id[:8]
         ref_local = os.path.join(tmp_dir, f"avatar_ref_{short_id}.mp4")
         audio_local = os.path.join(tmp_dir, f"news_{short_id}.mp3")
 
-        print("[Track A] Baixando video de referencia do MinIO...", flush=True)
+        log("Baixando video de referencia do MinIO...")
         ref_data = minio_client.download_file(reference_minio_path)
         with open(ref_local, "wb") as f:
             f.write(ref_data)
-        print(f"[Track A] Video de referencia: {len(ref_data)/1024/1024:.1f}MB", flush=True)
+        log(f"Video de referencia: {len(ref_data)/1024/1024:.1f}MB")
 
-        print("[Track A] Baixando audio TTS do MinIO...", flush=True)
+        log("Baixando audio TTS do MinIO...")
         audio_data = minio_client.download_file(tts_audio_minio_path)
         with open(audio_local, "wb") as f:
             f.write(audio_data)
+        log("Audio TTS baixado!")
 
-        print("[Track A] Enviando para DreamFace...", flush=True)
+        log("Enviando para DreamFace...")
 
         # Step 3: Run DreamFace automation
         raw_avatar_path = await dreamface_automation.process_avatar(
@@ -95,23 +120,23 @@ async def process_avatar(
             account, success=True
         )
 
-        print("[Track A] Avatar gerado pelo DreamFace! Salvando no MinIO...", flush=True)
+        log("Avatar gerado pelo DreamFace! Salvando no MinIO...", "SUCCESS")
 
         # Step 4: Upload raw DreamFace result to MinIO
         raw_minio_path = asset_manager.save_asset_from_file(
             job_id, "stage2_avatar", "avatar_raw.mp4", raw_avatar_path, "video/mp4"
         )
-        print(f"[Track A] Avatar raw salvo: {raw_minio_path}", flush=True)
+        log(f"Avatar raw salvo: {raw_minio_path}")
 
         # Step 5: Apply chromakey to remove green screen
-        print("[Track A] Aplicando chromakey (removendo fundo verde)...", flush=True)
+        log("Aplicando chromakey (removendo fundo verde)...")
         chromakey_output = os.path.join(tmp_dir, "avatar_chromakey.avi")
         await ffmpeg_processor.chromakey(
             input_path=raw_avatar_path,
             output_path=chromakey_output,
         )
 
-        print("[Track A] Chromakey concluido! Convertendo para WebM com alpha...", flush=True)
+        log("Chromakey concluido! Convertendo para WebM com alpha...")
 
         # Step 6: Convert to WebM VP9 with alpha channel (for Remotion)
         webm_output = os.path.join(tmp_dir, "avatar_alpha.webm")

@@ -15,6 +15,27 @@ from app.services.whisper import whisper_client
 from app.utils.logger import logger
 
 
+def _log_to_db(video_id: str, stage: str, message: str, level: str = "INFO"):
+    """Save a log entry to the database (for frontend visibility)."""
+    import asyncio
+    from app.models.log_entry import LogEntry
+
+    async def _save():
+        async with async_session_factory() as session:
+            entry = LogEntry(video_id=video_id, stage=stage, level=level, message=message)
+            session.add(entry)
+            await session.commit()
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(_save())
+        else:
+            asyncio.run(_save())
+    except Exception:
+        pass
+
+
 async def process_brolls(
     job_id: str,
     tts_audio_minio_path: str,
@@ -54,14 +75,18 @@ async def process_brolls(
         - total_duration: audio duration in seconds
         - prompts_used: list of prompts sent to Grok
     """
-    print("[Track B] Iniciando processamento de B-Rolls...", flush=True)
+    def log(msg, level="INFO"):
+        print(f"[Track B] {msg}", flush=True)
+        _log_to_db(job_id, "stage2_brolls", f"[B-Rolls] {msg}", level)
+
+    log("Iniciando processamento de B-Rolls...")
 
     tmp_dir = tempfile.mkdtemp(prefix=f"brolls_{job_id}_")
     account = None
 
     try:
         # ── Step 1: Download TTS audio ────────────────────────────
-        print("[Track B] 1/7 Baixando audio TTS do MinIO...", flush=True)
+        log("1/7 Baixando audio TTS do MinIO...")
 
         audio_local = os.path.join(tmp_dir, "tts_audio.mp3")
         audio_data = minio_client.download_file(tts_audio_minio_path)
@@ -69,15 +94,15 @@ async def process_brolls(
             f.write(audio_data)
 
         total_duration = await ffmpeg_processor.get_duration(audio_local)
-        print(f"[Track B] 1/7 Audio TTS: {len(audio_data)/1024:.0f}KB, duracao: {total_duration:.1f}s", flush=True)
+        log(f"1/7 Audio TTS: {len(audio_data)/1024:.0f}KB, duracao: {total_duration:.1f}s", flush=True)
 
         # ── Step 2: Whisper transcription ─────────────────────────
-        print("[Track B] 2/7 Transcrevendo com Whisper (word-level)...", flush=True)
+        log("2/7 Transcrevendo com Whisper (word-level)...")
 
         word_timestamps = await whisper_client.transcribe_to_word_timestamps(
             audio_local, language=language
         )
-        print(f"[Track B] 2/7 Whisper: {len(word_timestamps)} palavras transcritas", flush=True)
+        log(f"2/7 Whisper: {len(word_timestamps)} palavras transcritas", flush=True)
 
         timestamps_json = json.dumps(word_timestamps, ensure_ascii=False, indent=2)
         asset_manager.save_asset(
@@ -89,7 +114,7 @@ async def process_brolls(
         )
 
         # ── Step 3: Scene Director (LLM) ─────────────────────────
-        print("[Track B] 3/7 Diretor de Cena analisando roteiro (LLM)...", flush=True)
+        log("3/7 Diretor de Cena analisando roteiro (LLM)...")
 
         scene_data = await scene_director.direct_scenes(
             script=script,
@@ -101,7 +126,7 @@ async def process_brolls(
 
         scenes = scene_data.get("scenes", [])
         urgent_keywords = scene_data.get("urgent_keywords", [])
-        print(f"[Track B] 3/7 Diretor de Cena: {len(scenes)} cenas, {len(urgent_keywords)} keywords", flush=True)
+        log(f"3/7 Diretor de Cena: {len(scenes)} cenas, {len(urgent_keywords)} keywords", flush=True)
 
         scene_json = json.dumps(scene_data, ensure_ascii=False, indent=2)
         asset_manager.save_asset(
@@ -111,7 +136,7 @@ async def process_brolls(
             scene_json.encode(),
             "application/json",
         )
-        print("[Track B] 3/7 Cenas salvas no MinIO (scenes.json)", flush=True)
+        log("3/7 Cenas salvas no MinIO (scenes.json)")
 
         # ── Step 4: Extract B-Roll prompts ────────────────────────
         prompts = [
@@ -125,25 +150,25 @@ async def process_brolls(
 
         max_brolls = min(len(prompts), settings.BROLL_COUNT)
         prompts = prompts[:max_brolls]
-        print(f"[Track B] 4/7 {len(prompts)} prompts de B-Roll extraidos:", flush=True)
+        log(f"4/7 {len(prompts)} prompts de B-Roll extraidos:", flush=True)
         for i, p in enumerate(prompts):
-            print(f"[Track B]   [{i+1}] {p[:80]}", flush=True)
+            log(f"  [{i+1}] {p[:80]}")
 
         # ── Step 5: Get Grok account ─────────────────────────────
-        print("[Track B] 5/7 Buscando conta Grok...", flush=True)
+        log("5/7 Buscando conta Grok...")
         async with async_session_factory() as fresh_db:
             account = await account_rotator.get_next_account("grok", fresh_db)
             if not account:
                 raise RuntimeError("No active Grok accounts available")
             cookies = await account_rotator.get_account_cookies(account)
             proxy = await account_rotator.get_account_proxy(account)
-        print(f"[Track B] 5/7 Conta Grok: {account.account_name} ({len(cookies)} cookies)", flush=True)
+        log(f"5/7 Conta Grok: {account.account_name} ({len(cookies)} cookies)", flush=True)
 
         # ── Step 6: Batch generate via Grok ──────────────────────
-        print(f"[Track B] 6/7 Gerando {len(prompts)} B-Rolls com Grok...", flush=True)
+        log(f"6/7 Gerando {len(prompts)} B-Rolls com Grok...", flush=True)
 
         def _grok_progress(done: int, total: int, msg: str) -> None:
-            print(f"[Track B] 6/7 B-Rolls: {done}/{total} - {msg}", flush=True)
+            log(f"6/7 B-Rolls: {done}/{total} - {msg}", flush=True)
             if on_progress:
                 on_progress(f"B-Rolls: {done}/{total} - {msg}")
 
@@ -159,10 +184,10 @@ async def process_brolls(
         )
 
         await account_rotator.mark_account_used(account, success=True)
-        print(f"[Track B] 6/7 Grok concluido: {len(broll_local_paths)} videos gerados", flush=True)
+        log(f"6/7 Grok concluido: {len(broll_local_paths)} videos gerados", flush=True)
 
         # ── Step 7: Convert to 30fps + Upload to MinIO ────────────
-        print(f"[Track B] 7/7 Convertendo B-Rolls para 30fps e subindo no MinIO...", flush=True)
+        log(f"7/7 Convertendo B-Rolls para 30fps e subindo no MinIO...", flush=True)
 
         broll_minio_paths: dict[int, str] = {}
         for idx, local_path in broll_local_paths.items():
@@ -185,9 +210,9 @@ async def process_brolls(
                     job_id, "stage2_brolls", filename, upload_path, "video/mp4"
                 )
                 broll_minio_paths[idx] = minio_path
-                print(f"[Track B] 7/7 B-Roll {idx+1}/{len(prompts)} salvo no MinIO", flush=True)
+                log(f"7/7 B-Roll {idx+1}/{len(prompts)} salvo no MinIO", flush=True)
 
-        print(f"[Track B] CONCLUIDO: {len(broll_minio_paths)}/{len(prompts)} B-Rolls prontos!", flush=True)
+        log(f"CONCLUIDO: {len(broll_minio_paths)}/{len(prompts)} B-Rolls prontos!", flush=True)
 
         return {
             "word_timestamps": word_timestamps,
