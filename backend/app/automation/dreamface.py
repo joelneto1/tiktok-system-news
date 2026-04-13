@@ -341,12 +341,6 @@ class DreamFaceAutomation:
             else:
                 print("[DreamFace] ERRO: Nenhum thumbnail encontrado!", flush=True)
                 raise RuntimeError("DreamFace: Nenhum thumbnail disponivel")
-
-                # Take screenshot for debugging
-                await page.screenshot(path="/tmp/dreamface_thumb_selected.png")
-                print("[DreamFace] Screenshot salvo: /tmp/dreamface_thumb_selected.png", flush=True)
-            else:
-                print("[DreamFace] AVISO: Nenhum thumbnail encontrado!", flush=True)
         except Exception as e:
             print(f"[DreamFace] Erro ao selecionar thumbnail: {e}", flush=True)
 
