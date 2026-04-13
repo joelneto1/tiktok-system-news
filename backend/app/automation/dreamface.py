@@ -355,55 +355,82 @@ class DreamFaceAutomation:
         )
 
     async def _download_result(self, page: Page) -> str:
-        """Click on the completed card and download the result video.
-
-        Flow: Click first card (._operate_1jvc3_1) → Dialog opens → Click "Baixar" → Save download
-        """
-        self.logger.info("DreamFace: Downloading result...")
-
-        # Click on the first creation card via JavaScript (avoids overlay interception)
-        clicked = await page.evaluate('''() => {
-            const cards = document.querySelectorAll('[class*="creationList"] > *');
-            if (cards.length > 0) { cards[0].querySelector('img, [class*="operate"]')?.click() || cards[0].click(); return true; }
-            return false;
-        }''')
-
-        if not clicked:
-            raise RuntimeError("DreamFace: Could not find result card to click")
-
-        self.logger.info("DreamFace: Clicked first creation card")
-        await page.wait_for_timeout(3000)
-
-        # Get video CDN URL from the modal/player that opened
-        video_url = await page.evaluate('''() => {
-            const video = document.querySelector('video');
-            if (video && video.src) return video.src;
-            const source = document.querySelector('video source');
-            if (source && source.src) return source.src;
-            const link = document.querySelector('a[href*=".mp4"]');
-            if (link) return link.href;
-            return null;
-        }''')
+        """Download the result video from DreamFace creation page."""
+        print("[DreamFace] Tentando baixar resultado...", flush=True)
 
         output_path = tempfile.mktemp(suffix=".mp4")
 
-        if video_url:
-            self.logger.info(f"DreamFace: Found video CDN URL, downloading...")
+        # Strategy 1: Try to find video URL directly on the page
+        for attempt in range(3):
+            video_url = await page.evaluate('''() => {
+                const videos = document.querySelectorAll('video');
+                for (const v of videos) {
+                    if (v.src && v.src.includes('http')) return v.src;
+                }
+                const sources = document.querySelectorAll('video source');
+                for (const s of sources) {
+                    if (s.src && s.src.includes('http')) return s.src;
+                }
+                const links = document.querySelectorAll('a[href*=".mp4"]');
+                for (const l of links) {
+                    if (l.href) return l.href;
+                }
+                return null;
+            }''')
+
+            if video_url:
+                print(f"[DreamFace] URL do video encontrada: {video_url[:80]}...", flush=True)
+                async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+                    resp = await client.get(video_url)
+                    resp.raise_for_status()
+                    with open(output_path, "wb") as f:
+                        f.write(resp.content)
+                size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                if size_mb > 0.1:
+                    return output_path
+
+            print(f"[DreamFace] Tentativa {attempt+1}/3: video nao encontrado, clicando no card...", flush=True)
+
+            # Click on creation card to open modal
+            await page.evaluate('''() => {
+                const cards = document.querySelectorAll('[class*="creationList"] > *');
+                if (cards.length > 0) { cards[0].querySelector('img, [class*="operate"]')?.click() || cards[0].click(); }
+            }''')
+            await page.wait_for_timeout(5000)
+
+        # Strategy 2: Try download button
+        print("[DreamFace] Tentando botao de download...", flush=True)
+        for btn_name in ["Baixar", "Download", "Descargar"]:
+            try:
+                btn = page.get_by_role("button", name=btn_name)
+                if await btn.count() > 0:
+                    async with page.expect_download(timeout=30000) as download_info:
+                        await btn.click()
+                    download = await download_info.value
+                    await download.save_as(output_path)
+                    size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                    if size_mb > 0.1:
+                        print(f"[DreamFace] Baixado via botao {btn_name}: {size_mb:.1f}MB", flush=True)
+                        return output_path
+            except Exception:
+                continue
+
+        # Strategy 3: Try any download link
+        print("[DreamFace] Tentando links de download na pagina...", flush=True)
+        download_url = await page.evaluate('''() => {
+            const links = document.querySelectorAll('a[download], a[href*="download"], a[href*=".mp4"]');
+            for (const l of links) { if (l.href) return l.href; }
+            return null;
+        }''')
+        if download_url:
             async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-                resp = await client.get(video_url)
+                resp = await client.get(download_url)
                 resp.raise_for_status()
                 with open(output_path, "wb") as f:
                     f.write(resp.content)
-        else:
-            # Fallback: try expect_download with Baixar button
-            self.logger.warning("DreamFace: No video URL found, trying Baixar button")
-            try:
-                async with page.expect_download(timeout=60000) as download_info:
-                    await page.get_by_role("button", name="Baixar").click()
-                download = await download_info.value
-                await download.save_as(output_path)
-            except Exception as e:
-                raise RuntimeError(f"DreamFace: Download failed: {e}")
+                return output_path
+
+        raise RuntimeError("DreamFace: Nao foi possivel baixar o video resultado")
 
         size_mb = os.path.getsize(output_path) / (1024 * 1024)
         self.logger.success(f"DreamFace: Downloaded {size_mb:.1f}MB to {output_path}")
