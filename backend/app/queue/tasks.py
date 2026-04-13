@@ -22,37 +22,43 @@ def pipeline_task(self, video_id: str, model_type: str = "news_tradicional"):
     """Main Celery task that runs the video generation pipeline."""
     print(f"[Pipeline] Task iniciada: video={video_id}, model={model_type}", flush=True)
 
-    # Force-create a fresh async engine for each task to avoid event loop conflicts
-    import app.database as db_module
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    from app.config import settings
+    async def _run_with_fresh_engine():
+        """Create fresh engine INSIDE the new event loop, then run pipeline."""
+        import app.database as db_module
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+        from app.config import settings
 
-    db_url = settings.DATABASE_URL.split("?")[0]
-    db_module.engine.dispose()
-    db_module.engine = create_async_engine(
-        db_url, echo=False, pool_size=5, max_overflow=5,
-        pool_pre_ping=True, connect_args={"ssl": False},
-    )
-    db_module.async_session_factory = async_sessionmaker(
-        bind=db_module.engine, class_=AsyncSession, expire_on_commit=False,
-    )
+        db_url = settings.DATABASE_URL.split("?")[0]
+        db_module.engine.dispose()
+        db_module.engine = create_async_engine(
+            db_url, echo=False, pool_size=5, max_overflow=5,
+            pool_pre_ping=True, connect_args={"ssl": False},
+        )
+        db_module.async_session_factory = async_sessionmaker(
+            bind=db_module.engine, class_=AsyncSession, expire_on_commit=False,
+        )
+        await _run_pipeline(self, video_id, model_type)
 
     try:
-        asyncio.run(_run_pipeline(self, video_id, model_type))
+        asyncio.run(_run_with_fresh_engine())
     except Exception as exc:
         print(f"[Pipeline] ERRO: {exc}", flush=True)
         try:
-            db_module.engine.dispose()
-            db_module.engine = create_async_engine(
-                db_url, echo=False, pool_size=5, max_overflow=5,
-                pool_pre_ping=True, connect_args={"ssl": False},
-            )
-            db_module.async_session_factory = async_sessionmaker(
-                bind=db_module.engine, class_=AsyncSession, expire_on_commit=False,
-            )
-            asyncio.run(
-                update_progress(video_id, "failed", "failed", str(exc)[:500])
-            )
+            async def _mark_failed():
+                import app.database as db_module
+                from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+                from app.config import settings
+                db_url = settings.DATABASE_URL.split("?")[0]
+                db_module.engine.dispose()
+                db_module.engine = create_async_engine(
+                    db_url, echo=False, pool_size=5, max_overflow=5,
+                    pool_pre_ping=True, connect_args={"ssl": False},
+                )
+                db_module.async_session_factory = async_sessionmaker(
+                    bind=db_module.engine, class_=AsyncSession, expire_on_commit=False,
+                )
+                await update_progress(video_id, "failed", "failed", str(exc)[:500])
+            asyncio.run(_mark_failed())
         except Exception:
             pass
         raise
