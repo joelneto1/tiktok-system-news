@@ -227,61 +227,39 @@ class DreamFaceAutomation:
         count_before = await thumbs_before.count()
         print(f"[DreamFace] Thumbnails ANTES do upload: {count_before}", flush=True)
 
-        # Upload file — read file bytes and inject via JavaScript DataTransfer
+        # Upload file — make hidden input visible and click it directly
         uploaded = False
 
-        print("[DreamFace] Lendo arquivo local pra upload...", flush=True)
-        import base64
-        with open(video_path, "rb") as f:
-            file_bytes = f.read()
-        file_b64 = base64.b64encode(file_bytes).decode()
-        file_name = os.path.basename(video_path)
-        file_size = len(file_bytes)
-        print(f"[DreamFace] Arquivo: {file_name} ({file_size/1024/1024:.1f}MB)", flush=True)
-
-        # Approach 1: Inject file via JavaScript DataTransfer on the input
-        print("[DreamFace] Injetando arquivo via JavaScript DataTransfer...", flush=True)
+        # Approach 1: Make input visible, click it, intercept filechooser
+        print("[DreamFace] Tornando input[type=file] visivel...", flush=True)
         try:
-            result = await page.evaluate(f'''(data) => {{
-                const b64 = data.b64;
-                const fileName = data.fileName;
-                const byteString = atob(b64);
-                const ab = new ArrayBuffer(byteString.length);
-                const ia = new Uint8Array(ab);
-                for (let i = 0; i < byteString.length; i++) {{
-                    ia[i] = byteString.charCodeAt(i);
-                }}
-                const blob = new Blob([ab], {{ type: 'video/mp4' }});
-                const file = new File([blob], fileName, {{ type: 'video/mp4', lastModified: Date.now() }});
-
+            await page.evaluate('''() => {
                 const input = document.querySelector('input[type="file"]');
-                if (!input) return 'NO_INPUT';
+                if (input) {
+                    input.style.display = 'block';
+                    input.style.opacity = '1';
+                    input.style.position = 'fixed';
+                    input.style.top = '50px';
+                    input.style.left = '50px';
+                    input.style.width = '200px';
+                    input.style.height = '50px';
+                    input.style.zIndex = '99999';
+                    return 'INPUT_VISIBLE';
+                }
+                return 'NO_INPUT';
+            }''')
 
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                input.files = dt.files;
-
-                // Dispatch all possible events
-                input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-
-                // Also try React's synthetic event
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                    window.HTMLInputElement.prototype, 'value'
-                )?.set;
-                if (nativeInputValueSetter) {{
-                    nativeInputValueSetter.call(input, '');
-                }}
-
-                return 'OK:' + input.files.length + ' files set';
-            }}''', {"b64": file_b64, "fileName": file_name})
-            print(f"[DreamFace] JavaScript DataTransfer result: {result}", flush=True)
-            if result and result.startswith("OK"):
-                uploaded = True
+            print("[DreamFace] Clicando no input visivel + filechooser...", flush=True)
+            async with page.expect_file_chooser(timeout=10000) as fc_info:
+                await page.locator('input[type="file"]').click()
+            file_chooser = await fc_info.value
+            await file_chooser.set_files(video_path)
+            print(f"[DreamFace] Arquivo enviado via input visivel: {video_path}", flush=True)
+            uploaded = True
         except Exception as e:
-            print(f"[DreamFace] JavaScript DataTransfer falhou: {e}", flush=True)
+            print(f"[DreamFace] Input visivel falhou: {e}", flush=True)
 
-        # Approach 2: Fallback - filechooser via _btnContent click
+        # Approach 2: Fallback - _btnContent click + filechooser
         if not uploaded:
             print("[DreamFace] Tentando via _btnContent + filechooser...", flush=True)
             try:
@@ -291,10 +269,10 @@ class DreamFaceAutomation:
                         await btn.first.click()
                     file_chooser = await fc_info.value
                     await file_chooser.set_files(video_path)
-                    print("[DreamFace] Arquivo enviado via filechooser!", flush=True)
+                    print("[DreamFace] Arquivo enviado via _btnContent!", flush=True)
                     uploaded = True
             except Exception as e:
-                print(f"[DreamFace] Filechooser falhou: {e}", flush=True)
+                print(f"[DreamFace] _btnContent falhou: {e}", flush=True)
 
         if not uploaded:
             print("[DreamFace] Tentando via filechooser...", flush=True)
