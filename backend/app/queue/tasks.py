@@ -7,6 +7,7 @@ from app.database import async_session_factory
 from app.models.reference import Reference
 from app.models.sfx import SoundEffect
 from app.models.system_prompt import SystemPrompt
+from app.models.system_settings import SystemSettings
 from app.models.video import Video
 from app.pipeline.registry import get_pipeline
 from app.queue.celery_app import celery_app
@@ -78,6 +79,19 @@ async def _run_pipeline(task, video_id: str, model_type: str) -> None:
         user_id = video.user_id
         vid = str(video.id)
         voice_id = (video.metadata_json or {}).get("voice_id", "")
+
+        # If no voice_id from frontend, load default from Settings
+        if not voice_id:
+            voice_result = await db.execute(
+                select(SystemSettings).where(SystemSettings.key == "default_voice_id")
+            )
+            voice_setting = voice_result.scalar_one_or_none()
+            if voice_setting:
+                voice_id = voice_setting.value
+                if voice_setting.is_encrypted:
+                    from app.utils.crypto import decrypt_value
+                    voice_id = decrypt_value(voice_id)
+                print(f"[Pipeline] Voice ID do Settings: {voice_id}", flush=True)
         audio_id = (video.metadata_json or {}).get("audio_id")
         reference_id = video.reference_id
 
