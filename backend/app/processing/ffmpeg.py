@@ -28,7 +28,12 @@ class FFmpegProcessor:
         Returns:
             Output path.
         """
-        vf_filter = f"chromakey=0x{color}:{similarity}:{blend}"
+        # Chromakey + alpha threshold: pixels with >30% opacity become fully opaque
+        # This prevents the body from being semi-transparent while keeping background transparent
+        vf_filter = (
+            f"chromakey=0x{color}:{similarity}:{blend},"
+            f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(gt(alpha(X,Y),77),255,0)'"
+        )
         cmd = [
             "ffmpeg",
             "-y",
