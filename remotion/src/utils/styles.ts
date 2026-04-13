@@ -21,7 +21,7 @@ export const FONTS = {
 } as const;
 
 export const CAPTION_STYLE = {
-  fontSize: 65,
+  fontSize: 61,
   fontWeight: 800 as const,
   strokeWidth: 3,
   lineHeight: 1.2,
