@@ -157,6 +157,7 @@ async function main() {
     serveUrl: bundleLocation,
     id: compositionId,
     inputProps: props as unknown as Record<string, unknown>,
+    timeoutInMilliseconds: 120000,
   });
 
   // ---- Ensure output directory exists ----
@@ -184,6 +185,7 @@ async function main() {
     codec: 'h264',
     outputLocation: resolvedOutput,
     inputProps: props as unknown as Record<string, unknown>,
+    timeoutInMilliseconds: 120000,
     onProgress: ({ progress }) => {
       const pct = (progress * 100).toFixed(1);
       process.stderr.write(`\r[render] Progress: ${pct}%`);

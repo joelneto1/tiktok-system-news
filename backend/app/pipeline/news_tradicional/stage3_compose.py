@@ -210,16 +210,29 @@ async def compose_and_render(
         "--output", output_file,
     ]
 
-    proc = subprocess.run(
-        render_cmd, capture_output=True, text=True,
-        timeout=600, cwd=remotion_dir,
+    proc = subprocess.Popen(
+        render_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, cwd=remotion_dir,
     )
 
+    # Stream stderr for progress logging
+    stderr_lines = []
+    try:
+        for line in proc.stderr:
+            line = line.rstrip()
+            stderr_lines.append(line)
+            if "[render]" in line:
+                logger.info("{line}", line=line)
+        proc.wait(timeout=600)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise RuntimeError("[Stage 3] Remotion render timed out (600s)")
+
+    stdout_full = proc.stdout.read() if proc.stdout else ""
+    stderr_full = "\n".join(stderr_lines)
+
     if proc.returncode != 0:
-        stderr_full = proc.stderr or "(no stderr)"
-        stdout_full = proc.stdout or "(no stdout)"
         logger.error("[Stage 3] Remotion STDERR: {err}", err=stderr_full[-2000:])
-        logger.error("[Stage 3] Remotion STDOUT: {out}", out=stdout_full[-500:])
         logger.error("[Stage 3] Remotion exit code: {code}", code=proc.returncode)
         raise RuntimeError(f"Remotion render failed: {stderr_full[-1000:]}")
 
