@@ -449,16 +449,13 @@ class DreamFaceAutomation:
                     print(f"[DreamFace] Processando... ({elapsed}s)", flush=True)
                     if on_progress:
                         on_progress(f"Processing... ({elapsed}s)")
+                elif elapsed > 120:
+                    # Not generating and past minimum wait time — likely complete
+                    print(f"[DreamFace] Sem indicador 'Gerando' apos {elapsed}s - provavelmente completo", flush=True)
+                    await page.wait_for_timeout(5000)
+                    return
                 else:
-                    # Not generating but no video yet — check for completion indicators
-                    has_thumb = await page.evaluate('''() => {
-                        const imgs = document.querySelectorAll('[class*="creationList"] img');
-                        return imgs.length > 0;
-                    }''')
-                    if has_thumb and elapsed > 30:
-                        print(f"[DreamFace] Thumbnail encontrado, geracao provavelmente completa ({elapsed}s)", flush=True)
-                        await page.wait_for_timeout(5000)
-                        return
+                    print(f"[DreamFace] Aguardando... ({elapsed}s, minimo 120s)", flush=True)
 
             except Exception as e:
                 print(f"[DreamFace] Erro na verificacao: {e}", flush=True)
