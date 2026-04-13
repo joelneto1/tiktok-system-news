@@ -2,9 +2,14 @@ import axios from 'axios'
 
 const apiClient = axios.create({
   baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+})
+
+// Auto-detect Content-Type: JSON for objects, multipart for FormData
+apiClient.interceptors.request.use((config) => {
+  if (!(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json'
+  }
+  return config
 })
 
 // JWT interceptor — attach token from localStorage
