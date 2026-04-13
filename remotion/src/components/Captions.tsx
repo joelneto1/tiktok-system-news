@@ -75,39 +75,26 @@ export const Captions: React.FC<CaptionsProps> = ({ captions, fps }) => {
           const isPast = globalIdx < currentWordIndex;
 
           return (
-            <React.Fragment key={globalIdx}>
-              <span
-                style={{
-                  fontSize: CAPTION_STYLE.fontSize,
-                  fontWeight: CAPTION_STYLE.fontWeight,
-                  fontFamily: FONTS.caption,
-                  lineHeight: 1.3,
-                  color: isCurrent
-                    ? COLORS.captionYellow
-                    : isPast
-                      ? COLORS.captionWhite
-                      : COLORS.captionDimmed,
-                  textShadow: TEXT_STROKE_SHADOW,
-                  transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
-                  textTransform: 'uppercase',
-                  display: 'inline',
-                }}
-              >
-                {word.word}
-              </span>
-              {/* Space between words — always render a visible space */}
-              {idx < visibleWords.length - 1 && (
-                <span
-                  style={{
-                    fontSize: CAPTION_STYLE.fontSize,
-                    fontFamily: FONTS.caption,
-                    display: 'inline',
-                  }}
-                >
-                  {'\u00A0\u00A0'}
-                </span>
-              )}
-            </React.Fragment>
+            <span
+              key={globalIdx}
+              style={{
+                fontSize: CAPTION_STYLE.fontSize,
+                fontWeight: CAPTION_STYLE.fontWeight,
+                fontFamily: FONTS.caption,
+                lineHeight: 1.3,
+                color: isCurrent
+                  ? COLORS.captionYellow
+                  : isPast
+                    ? COLORS.captionWhite
+                    : COLORS.captionDimmed,
+                textShadow: TEXT_STROKE_SHADOW,
+                transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
+                textTransform: 'uppercase',
+                display: 'inline',
+              }}
+            >
+              {word.word}{idx < visibleWords.length - 1 ? ' ' : ''}
+            </span>
           );
         })}
       </div>
