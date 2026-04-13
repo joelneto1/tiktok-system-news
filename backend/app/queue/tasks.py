@@ -21,17 +21,34 @@ def pipeline_task(self, video_id: str, model_type: str = "news_tradicional"):
     """Main Celery task that runs the video generation pipeline."""
     print(f"[Pipeline] Task iniciada: video={video_id}, model={model_type}", flush=True)
 
-    # Reset the async engine to avoid "Future attached to different loop" errors
-    # Each Celery task gets a fresh event loop via asyncio.run()
-    from app.database import engine
-    engine.dispose()
+    # Force-create a fresh async engine for each task to avoid event loop conflicts
+    import app.database as db_module
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.config import settings
+
+    db_url = settings.DATABASE_URL.split("?")[0]
+    db_module.engine.dispose()
+    db_module.engine = create_async_engine(
+        db_url, echo=False, pool_size=5, max_overflow=5,
+        pool_pre_ping=True, connect_args={"ssl": False},
+    )
+    db_module.async_session_factory = async_sessionmaker(
+        bind=db_module.engine, class_=AsyncSession, expire_on_commit=False,
+    )
 
     try:
         asyncio.run(_run_pipeline(self, video_id, model_type))
     except Exception as exc:
         print(f"[Pipeline] ERRO: {exc}", flush=True)
         try:
-            engine.dispose()
+            db_module.engine.dispose()
+            db_module.engine = create_async_engine(
+                db_url, echo=False, pool_size=5, max_overflow=5,
+                pool_pre_ping=True, connect_args={"ssl": False},
+            )
+            db_module.async_session_factory = async_sessionmaker(
+                bind=db_module.engine, class_=AsyncSession, expire_on_commit=False,
+            )
             asyncio.run(
                 update_progress(video_id, "failed", "failed", str(exc)[:500])
             )
