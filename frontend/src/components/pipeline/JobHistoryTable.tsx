@@ -181,7 +181,10 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `video_${jobId.slice(0, 8)}.mp4`
+        // Extract filename from response headers or use default
+        const disposition = resp.headers.get('content-disposition')
+        const match = disposition?.match(/filename="?(.+?)"?$/)
+        a.download = match?.[1] || `news_${jobId.slice(0, 8)}.mp4`
         a.click()
         URL.revokeObjectURL(url)
       }
