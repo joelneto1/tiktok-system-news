@@ -292,8 +292,9 @@ class DreamFaceAutomation:
         if not uploaded:
             print("[DreamFace] AVISO: Nenhum metodo de upload funcionou!", flush=True)
 
-        # Wait for upload to process
-        await page.wait_for_timeout(8000)
+        # Wait for upload to process (DreamFace needs ~5-8s to show new thumbnail)
+        print("[DreamFace] Aguardando thumbnail aparecer (10s)...", flush=True)
+        await page.wait_for_timeout(10000)
 
         # Count thumbnails AFTER upload
         thumbs_after = page.locator("._imgStyle_m7pad_15")
@@ -309,43 +310,34 @@ class DreamFaceAutomation:
         try:
             thumbs = page.locator("._imgStyle_m7pad_15")
             count = await thumbs.count()
+            print(f"[DreamFace] Total thumbnails: {count}", flush=True)
 
-            if count > 0 and count_after > count_before:
-                # Upload funcionou — encontrar o thumbnail NOVO
-                # Gravar SRCs de ANTES, depois encontrar o novo
-                new_srcs = await page.evaluate('''(oldCount) => {
-                    const thumbs = document.querySelectorAll('._imgStyle_m7pad_15');
-                    const result = [];
-                    for (let i = 0; i < thumbs.length; i++) {
-                        result.push({idx: i, src: thumbs[i].src || thumbs[i].style.backgroundImage || ''});
-                    }
-                    return result;
-                }''', count_before)
-
-                # Clicar no PRIMEIRO thumbnail (mais recente no DreamFace)
-                # Tentar posição 0 primeiro, depois posição count-1
-                for try_idx in [0, count - 1]:
-                    await thumbs.nth(try_idx).click()
-                    await page.wait_for_timeout(2000)
-
-                    # Verificar se apareceu preview com fundo verde
-                    has_preview = await page.evaluate('''() => {
-                        // Check if a video preview or selected state appeared
-                        const selected = document.querySelector('[class*="selected"], [class*="active"], [class*="checked"], video');
-                        return selected !== null;
-                    }''')
-
-                    print(f"[DreamFace] Clicou thumbnail {try_idx+1}/{count}, preview={has_preview}", flush=True)
-                    if has_preview:
-                        break
-
-                print(f"[DreamFace] Thumbnail selecionado e confirmado!", flush=True)
-
-            elif count > 0:
-                # Upload falhou — tentar primeiro thumbnail
+            if count > 0:
+                # Clicar no PRIMEIRO thumbnail (DreamFace mostra recentes primeiro)
                 await thumbs.nth(0).click()
-                await page.wait_for_timeout(1000)
-                print(f"[DreamFace] Upload falhou, thumbnail 1/{count} selecionado (fallback)", flush=True)
+                await page.wait_for_timeout(2000)
+
+                # Verificar se ficou selecionado (class _selected_m7pad_23)
+                is_selected = await page.evaluate('''() => {
+                    const selected = document.querySelector('._selected_m7pad_23');
+                    return selected !== null;
+                }''')
+
+                if is_selected:
+                    print("[DreamFace] Thumbnail 1 selecionado e CONFIRMADO (_selected_m7pad_23)!", flush=True)
+                else:
+                    print("[DreamFace] AVISO: Thumbnail clicado mas nao confirmou selecao", flush=True)
+                    # Tentar clicar de novo
+                    await thumbs.nth(0).click()
+                    await page.wait_for_timeout(2000)
+                    is_selected2 = await page.evaluate('''() => {
+                        return document.querySelector('._selected_m7pad_23') !== null;
+                    }''')
+                    print(f"[DreamFace] Segunda tentativa: selecionado={is_selected2}", flush=True)
+
+                # Screenshot pra debug
+                await page.screenshot(path="/tmp/dreamface_thumb_selected.png")
+                print("[DreamFace] Screenshot: /tmp/dreamface_thumb_selected.png", flush=True)
             else:
                 print("[DreamFace] ERRO: Nenhum thumbnail encontrado!", flush=True)
                 raise RuntimeError("DreamFace: Nenhum thumbnail disponivel")
