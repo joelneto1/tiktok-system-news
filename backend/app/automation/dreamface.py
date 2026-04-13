@@ -306,47 +306,69 @@ class DreamFaceAutomation:
     ):
         """Wait for video generation to complete on the creation page.
 
-        Monitors for "Gerando..." text to disappear from the first card.
-        When it disappears, the video is ready for download.
+        Waits until a video element or thumbnail appears on the card,
+        indicating the generation is truly complete.
         """
-        self.logger.info(f"DreamFace: Waiting for completion (timeout: {timeout}s)...")
+        print(f"[DreamFace] Aguardando conclusao (timeout: {timeout}s)...", flush=True)
 
         start = asyncio.get_event_loop().time()
-        check_interval = 10  # seconds
+        check_interval = 10
 
         while asyncio.get_event_loop().time() - start < timeout:
-            try:
-                # Check if "Gerando..." is still visible on the page
-                generating_text = page.get_by_text("Gerando...")
-                is_generating = await generating_text.is_visible(timeout=3000)
+            elapsed = int(asyncio.get_event_loop().time() - start)
 
-                if not is_generating:
-                    self.logger.success("DreamFace: Generation complete!")
-                    await page.wait_for_timeout(2000)
+            try:
+                # Check if video element exists (true completion indicator)
+                has_video = await page.evaluate('''() => {
+                    const videos = document.querySelectorAll('video');
+                    for (const v of videos) {
+                        if (v.src && v.src.includes('http')) return true;
+                    }
+                    return false;
+                }''')
+
+                if has_video:
+                    print(f"[DreamFace] Video encontrado na pagina! Geracao completa ({elapsed}s)", flush=True)
+                    await page.wait_for_timeout(3000)
                     return
 
-                elapsed = int(asyncio.get_event_loop().time() - start)
-                self.logger.debug(
-                    f"DreamFace: Still generating... ({elapsed}s / {int(timeout)}s)"
-                )
-                if on_progress:
-                    on_progress(f"Processing... ({elapsed}s)")
+                # Check if still generating
+                is_generating = False
+                for text in ["Gerando...", "Generating...", "Processing"]:
+                    try:
+                        el = page.get_by_text(text)
+                        if await el.is_visible(timeout=1000):
+                            is_generating = True
+                            break
+                    except Exception:
+                        pass
 
-            except PlaywrightTimeout:
-                # "Gerando..." text not found — generation may be complete
-                self.logger.info("DreamFace: 'Gerando...' not found — likely complete")
-                await page.wait_for_timeout(2000)
-                return
+                if is_generating:
+                    print(f"[DreamFace] Processando... ({elapsed}s)", flush=True)
+                    if on_progress:
+                        on_progress(f"Processing... ({elapsed}s)")
+                else:
+                    # Not generating but no video yet — check for completion indicators
+                    has_thumb = await page.evaluate('''() => {
+                        const imgs = document.querySelectorAll('[class*="creationList"] img');
+                        return imgs.length > 0;
+                    }''')
+                    if has_thumb and elapsed > 30:
+                        print(f"[DreamFace] Thumbnail encontrado, geracao provavelmente completa ({elapsed}s)", flush=True)
+                        await page.wait_for_timeout(5000)
+                        return
+
             except Exception as e:
-                self.logger.debug(f"DreamFace: Check error: {e}")
+                print(f"[DreamFace] Erro na verificacao: {e}", flush=True)
 
             await page.wait_for_timeout(check_interval * 1000)
 
-            # Refresh page every 30s to get updated status
-            elapsed = int(asyncio.get_event_loop().time() - start)
-            if elapsed > 0 and elapsed % 30 == 0:
+            # Refresh page every 60s
+            if elapsed > 0 and elapsed % 60 == 0:
+                print(f"[DreamFace] Recarregando pagina ({elapsed}s)...", flush=True)
                 try:
                     await page.reload(wait_until="networkidle")
+                    await page.wait_for_timeout(3000)
                 except Exception:
                     pass
 
