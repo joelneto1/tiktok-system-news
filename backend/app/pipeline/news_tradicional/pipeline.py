@@ -45,10 +45,17 @@ class NewsTradicionalPipeline(BasePipeline):
         )
 
         # Save topic marker in MinIO for easy job identification
-        asset_manager.save_asset(
-            self.job_id, "", f"_topic_{topic[:60].replace('/', '-').replace(' ', '_')}.txt",
-            topic.encode(), "text/plain",
-        )
+        import unicodedata, re
+        topic_safe = unicodedata.normalize('NFKD', topic[:60]).encode('ascii', 'ignore').decode()
+        topic_safe = re.sub(r'[^a-zA-Z0-9\s-]', '', topic_safe).strip().replace(' ', '_')
+        if topic_safe:
+            try:
+                asset_manager.save_asset(
+                    self.job_id, "", f"_topic_{topic_safe}.txt",
+                    topic.encode(), "text/plain",
+                )
+            except Exception:
+                pass  # Non-critical, don't break pipeline
 
         # ── STAGE 1a: Script ─────────────────────────────────────────
         # Check if script already exists (resume support)

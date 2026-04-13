@@ -275,8 +275,9 @@ async def compose_and_render(
         raise RuntimeError("[Stage 3] Render completed but output file not found")
 
     # ── Upload rendered video to MinIO ──────────────────────────
-    import re
-    topic_slug = re.sub(r'[^a-zA-Z0-9\s-]', '', topic[:60]).strip().replace(' ', '_').lower()
+    import re, unicodedata
+    topic_ascii = unicodedata.normalize('NFKD', topic[:60]).encode('ascii', 'ignore').decode()
+    topic_slug = re.sub(r'[^a-zA-Z0-9\s-]', '', topic_ascii).strip().replace(' ', '_').lower()
     output_filename = f"news_{topic_slug}.mp4" if topic_slug else "final.mp4"
     output_minio_path = asset_manager.save_asset_from_file(
         job_id, "output", output_filename, output_file, "video/mp4"
