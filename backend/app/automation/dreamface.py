@@ -222,28 +222,53 @@ class DreamFaceAutomation:
         except Exception:
             pass
 
+        # Count thumbnails BEFORE upload
+        thumbs_before = page.locator("._imgStyle_m7pad_15")
+        count_before = await thumbs_before.count()
+        print(f"[DreamFace] Thumbnails ANTES do upload: {count_before}", flush=True)
+
         # Upload file via hidden file input (bypasses file picker)
         file_inputs = await page.query_selector_all('input[type="file"]')
         if file_inputs:
             await file_inputs[0].set_input_files(video_path)
-            self.logger.info("DreamFace: Reference video file set via input[type=file]")
+            print(f"[DreamFace] Arquivo enviado via input[type=file]: {video_path}", flush=True)
         else:
-            # Fallback: try setting on body
             await page.locator("body").set_input_files(video_path)
-            self.logger.info("DreamFace: Reference video file set via body")
-        await page.wait_for_timeout(3000)
+            print(f"[DreamFace] Arquivo enviado via body: {video_path}", flush=True)
 
-        # Select the LAST uploaded video (most recent = the one we just uploaded)
+        # Wait for upload to process
+        await page.wait_for_timeout(5000)
+
+        # Count thumbnails AFTER upload
+        thumbs_after = page.locator("._imgStyle_m7pad_15")
+        count_after = await thumbs_after.count()
+        print(f"[DreamFace] Thumbnails DEPOIS do upload: {count_after}", flush=True)
+
+        if count_after > count_before:
+            print(f"[DreamFace] NOVO thumbnail detectado! Upload funcionou.", flush=True)
+        else:
+            print(f"[DreamFace] AVISO: Nenhum novo thumbnail! Upload pode ter falhado.", flush=True)
+
+        # Select thumbnail - try LAST first, if same count try FIRST (newest might be first)
         try:
             thumbs = page.locator("._imgStyle_m7pad_15")
             count = await thumbs.count()
             if count > 0:
-                # Click the LAST thumbnail (most recently uploaded)
-                await thumbs.nth(count - 1).click()
+                if count_after > count_before:
+                    # New thumb added - select LAST (appended at end)
+                    idx = count - 1
+                else:
+                    # No new thumb - DreamFace might show newest FIRST
+                    idx = 0
+                await thumbs.nth(idx).click()
                 await page.wait_for_timeout(1000)
-                print(f"[DreamFace] Video selecionado: thumbnail {count}/{count} (ultimo upado)", flush=True)
+                print(f"[DreamFace] Thumbnail {idx+1}/{count} selecionado", flush=True)
+
+                # Take screenshot for debugging
+                await page.screenshot(path="/tmp/dreamface_thumb_selected.png")
+                print("[DreamFace] Screenshot salvo: /tmp/dreamface_thumb_selected.png", flush=True)
             else:
-                print("[DreamFace] AVISO: Nenhum thumbnail encontrado", flush=True)
+                print("[DreamFace] AVISO: Nenhum thumbnail encontrado!", flush=True)
         except Exception as e:
             print(f"[DreamFace] Erro ao selecionar thumbnail: {e}", flush=True)
 
