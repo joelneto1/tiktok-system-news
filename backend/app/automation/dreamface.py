@@ -46,7 +46,7 @@ class DreamFaceAutomation:
         reference_video_path: str,
         tts_audio_path: str,
         project_name: str = "News Video",
-        timeout: float = 600,
+        timeout: float = 720,
         on_progress=None,
     ) -> str:
         """Full DreamFace automation flow.
@@ -403,7 +403,7 @@ class DreamFaceAutomation:
     async def _wait_for_completion(
         self,
         page: Page,
-        timeout: float = 600,
+        timeout: float = 720,
         on_progress=None,
         project_name: str = "",
     ):
@@ -424,7 +424,7 @@ class DreamFaceAutomation:
 
         start = asyncio.get_event_loop().time()
         check_interval = 10
-        min_wait = 90  # Minimum seconds before accepting completion
+        min_wait = 180  # Minimum 3 minutes before accepting completion
 
         while asyncio.get_event_loop().time() - start < timeout:
             elapsed = int(asyncio.get_event_loop().time() - start)
