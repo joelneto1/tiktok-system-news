@@ -116,14 +116,14 @@ class DreamFaceAutomation:
             print("[DreamFace] 7/8 Aguardando processamento (2-5 min)...", flush=True)
             if on_progress:
                 on_progress("Waiting for DreamFace to process (2-5 min)...")
-            await self._wait_for_completion(creation_page, timeout, on_progress)
+            await self._wait_for_completion(creation_page, timeout, on_progress, project_name=project_name)
             print("[DreamFace] 7/8 Processamento concluido!", flush=True)
 
             # Step 8: Download result
             print("[DreamFace] 8/8 Baixando video resultado...", flush=True)
             if on_progress:
                 on_progress("Downloading result...")
-            output_path = await self._download_result(creation_page)
+            output_path = await self._download_result(creation_page, project_name=project_name)
             print(f"[DreamFace] 8/8 Video baixado: {output_path}", flush=True)
             return output_path
 
@@ -405,32 +405,62 @@ class DreamFaceAutomation:
         page: Page,
         timeout: float = 600,
         on_progress=None,
+        project_name: str = "",
     ):
         """Wait for video generation to complete on the creation page.
 
-        Waits until a video element or thumbnail appears on the card,
-        indicating the generation is truly complete.
+        Finds our specific project by name (news_{job_id[:8]}.mp3) and
+        waits for it to have a video/thumbnail result.
         """
-        print(f"[DreamFace] Aguardando conclusao (timeout: {timeout}s)...", flush=True)
+        # Extract short job id from project name for searching
+        search_term = ""
+        if project_name:
+            # Project name is like "News 6687e936: topic..."
+            parts = project_name.split(":")
+            if parts:
+                search_term = parts[0].strip()  # "News 6687e936"
+
+        print(f"[DreamFace] Aguardando conclusao (timeout: {timeout}s, projeto: {search_term})...", flush=True)
 
         start = asyncio.get_event_loop().time()
         check_interval = 10
+        min_wait = 90  # Minimum seconds before accepting completion
 
         while asyncio.get_event_loop().time() - start < timeout:
             elapsed = int(asyncio.get_event_loop().time() - start)
 
             try:
-                # Check if video element exists (true completion indicator)
-                has_video = await page.evaluate('''() => {
+                # Check if our specific project has a video ready
+                # Look for card with our project name that has a video/completed indicator
+                has_our_video = await page.evaluate('''(searchTerm) => {
+                    // Find all cards on creation page
+                    const cards = document.querySelectorAll('[class*="creationList"] > *, [class*="creation"] [class*="card"], [class*="item"]');
+                    for (const card of cards) {
+                        const text = card.innerText || '';
+                        // Check if this card is our project
+                        if (searchTerm && !text.includes(searchTerm)) continue;
+
+                        // Check if it has a video element (completed)
+                        const video = card.querySelector('video');
+                        if (video && video.src) return {found: true, src: video.src};
+
+                        // Check for completed thumbnail (not generating)
+                        const img = card.querySelector('img');
+                        const hasGenerating = text.includes('Gerando') || text.includes('Generating');
+                        if (img && !hasGenerating) return {found: true, src: img.src};
+                    }
+
+                    // Fallback: check any video on page
                     const videos = document.querySelectorAll('video');
                     for (const v of videos) {
-                        if (v.src && v.src.includes('http')) return true;
+                        if (v.src && v.src.includes('http')) return {found: true, src: v.src};
                     }
-                    return false;
-                }''')
 
-                if has_video:
-                    print(f"[DreamFace] Video encontrado na pagina! Geracao completa ({elapsed}s)", flush=True)
+                    return {found: false, src: ''};
+                }''', search_term)
+
+                if has_our_video and has_our_video.get("found") and elapsed >= min_wait:
+                    print(f"[DreamFace] Nosso video encontrado! ({elapsed}s) src: {has_our_video.get('src', '')[:60]}", flush=True)
                     await page.wait_for_timeout(3000)
                     return
 
@@ -449,21 +479,20 @@ class DreamFaceAutomation:
                     print(f"[DreamFace] Processando... ({elapsed}s)", flush=True)
                     if on_progress:
                         on_progress(f"Processing... ({elapsed}s)")
-                elif elapsed > 120:
-                    # Not generating and past minimum wait time — likely complete
-                    print(f"[DreamFace] Sem indicador 'Gerando' apos {elapsed}s - provavelmente completo", flush=True)
+                elif elapsed >= min_wait:
+                    print(f"[DreamFace] Sem 'Gerando' apos {elapsed}s - considerando completo", flush=True)
                     await page.wait_for_timeout(5000)
                     return
                 else:
-                    print(f"[DreamFace] Aguardando... ({elapsed}s, minimo 120s)", flush=True)
+                    print(f"[DreamFace] Aguardando... ({elapsed}s, minimo {min_wait}s)", flush=True)
 
             except Exception as e:
-                print(f"[DreamFace] Erro na verificacao: {e}", flush=True)
+                print(f"[DreamFace] Erro: {e}", flush=True)
 
             await page.wait_for_timeout(check_interval * 1000)
 
-            # Refresh page every 60s
-            if elapsed > 0 and elapsed % 60 == 0:
+            # Refresh page every 90s
+            if elapsed > 0 and elapsed % 90 == 0:
                 print(f"[DreamFace] Recarregando pagina ({elapsed}s)...", flush=True)
                 try:
                     await page.reload(wait_until="networkidle")
@@ -475,31 +504,50 @@ class DreamFaceAutomation:
             f"DreamFace: Processing did not complete within {timeout}s"
         )
 
-    async def _download_result(self, page: Page) -> str:
-        """Download the result video from DreamFace creation page."""
-        print("[DreamFace] Tentando baixar resultado...", flush=True)
+    async def _download_result(self, page: Page, project_name: str = "") -> str:
+        """Download the result video from DreamFace creation page.
+        Finds our project by name to avoid downloading wrong video.
+        """
+        # Extract search term from project name
+        search_term = ""
+        if project_name:
+            parts = project_name.split(":")
+            if parts:
+                search_term = parts[0].strip()
+
+        print(f"[DreamFace] Tentando baixar resultado (projeto: {search_term})...", flush=True)
 
         output_path = tempfile.mktemp(suffix=".mp4")
 
-        # Strategy 1: Try to find video URL directly on the page
-        for attempt in range(3):
-            video_url = await page.evaluate('''() => {
+        # Strategy 1: Find OUR project's card and get its video URL
+        for attempt in range(5):
+            video_url = await page.evaluate('''(searchTerm) => {
+                // Look for our project card by name
+                const allCards = document.querySelectorAll('[class*="creationList"] > *, [class*="creation"] [class*="card"], [class*="item"]');
+                for (const card of allCards) {
+                    const text = card.innerText || '';
+                    if (searchTerm && !text.includes(searchTerm)) continue;
+
+                    // Found our card — look for video
+                    const video = card.querySelector('video');
+                    if (video && video.src) return video.src;
+
+                    // Try clicking the card to open modal
+                    const clickable = card.querySelector('img, [class*="operate"]');
+                    if (clickable) clickable.click();
+                    else card.click();
+                    return '__CLICKED__';
+                }
+
+                // Fallback: any video on page
                 const videos = document.querySelectorAll('video');
                 for (const v of videos) {
                     if (v.src && v.src.includes('http')) return v.src;
                 }
-                const sources = document.querySelectorAll('video source');
-                for (const s of sources) {
-                    if (s.src && s.src.includes('http')) return s.src;
-                }
-                const links = document.querySelectorAll('a[href*=".mp4"]');
-                for (const l of links) {
-                    if (l.href) return l.href;
-                }
                 return null;
-            }''')
+            }''', search_term)
 
-            if video_url:
+            if video_url and video_url != '__CLICKED__' and video_url.startswith('http'):
                 print(f"[DreamFace] URL do video encontrada: {video_url[:80]}...", flush=True)
                 async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
                     resp = await client.get(video_url)
@@ -508,16 +556,33 @@ class DreamFaceAutomation:
                         f.write(resp.content)
                 size_mb = os.path.getsize(output_path) / (1024 * 1024)
                 if size_mb > 0.1:
+                    print(f"[DreamFace] Video baixado: {size_mb:.1f}MB", flush=True)
                     return output_path
 
-            print(f"[DreamFace] Tentativa {attempt+1}/3: video nao encontrado, clicando no card...", flush=True)
+            if video_url == '__CLICKED__':
+                print(f"[DreamFace] Tentativa {attempt+1}/5: clicou no card, aguardando modal...", flush=True)
+                await page.wait_for_timeout(5000)
 
-            # Click on creation card to open modal
-            await page.evaluate('''() => {
-                const cards = document.querySelectorAll('[class*="creationList"] > *');
-                if (cards.length > 0) { cards[0].querySelector('img, [class*="operate"]')?.click() || cards[0].click(); }
-            }''')
-            await page.wait_for_timeout(5000)
+                # After click, check for video in modal
+                modal_video = await page.evaluate('''() => {
+                    const video = document.querySelector('video');
+                    if (video && video.src) return video.src;
+                    return null;
+                }''')
+                if modal_video:
+                    print(f"[DreamFace] Video no modal: {modal_video[:80]}...", flush=True)
+                    async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+                        resp = await client.get(modal_video)
+                        resp.raise_for_status()
+                        with open(output_path, "wb") as f:
+                            f.write(resp.content)
+                    size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                    if size_mb > 0.1:
+                        print(f"[DreamFace] Video baixado do modal: {size_mb:.1f}MB", flush=True)
+                        return output_path
+            else:
+                print(f"[DreamFace] Tentativa {attempt+1}/5: video nao encontrado", flush=True)
+                await page.wait_for_timeout(5000)
 
         # Strategy 2: Try download button
         print("[DreamFace] Tentando botao de download...", flush=True)
