@@ -31,9 +31,9 @@ const STATUS_STYLES: Record<string, string> = {
 type CookieExpStatus = 'expired' | 'expiring_soon' | 'valid'
 
 function getCookieExpStatus(cookieExp: string): CookieExpStatus {
-  if (!cookieExp || cookieExp === '--') return 'expired'
+  if (!cookieExp || cookieExp === '--' || cookieExp === 'null') return 'valid' // No expiry data = assume valid
   const expDate = new Date(cookieExp)
-  if (isNaN(expDate.getTime())) return 'expired'
+  if (isNaN(expDate.getTime())) return 'valid' // Can't parse = assume valid
   const now = new Date()
   if (expDate <= now) return 'expired'
   const msIn24h = 24 * 60 * 60 * 1000
@@ -157,6 +157,9 @@ export default function AccountsTable({
                             EXPIRA EM BREVE
                           </span>
                         )
+                      }
+                      if (!account.cookieExp || account.cookieExp === '--' || account.cookieExp === 'null') {
+                        return <span className="text-text-secondary/50">N/A</span>
                       }
                       return <span className="text-green-400">{account.cookieExp}</span>
                     })()}
