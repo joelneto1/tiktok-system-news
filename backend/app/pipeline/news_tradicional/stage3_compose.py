@@ -9,6 +9,33 @@ from app.services.minio_client import minio_client
 from app.utils.logger import logger
 
 
+def _log_to_db(video_id: str, stage: str, message: str, level: str = "INFO"):
+    """Save a log entry to the database synchronously (for render progress)."""
+    import asyncio
+    from app.database import async_session_factory
+    from app.models.log_entry import LogEntry
+
+    async def _save():
+        async with async_session_factory() as session:
+            entry = LogEntry(
+                video_id=video_id,
+                stage=stage,
+                level=level,
+                message=message,
+            )
+            session.add(entry)
+            await session.commit()
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(_save())
+        else:
+            asyncio.run(_save())
+    except Exception:
+        pass  # Non-critical
+
+
 def _download_to_public(minio_path: str, public_dir: str, filename: str) -> str:
     """Download a MinIO file to the Remotion public/ folder for staticFile() access."""
     local_path = os.path.join(public_dir, filename)
@@ -70,31 +97,36 @@ async def compose_and_render(
         except Exception:
             pass
 
-    print("[Render] === Iniciando Stage 3: Composicao e Renderizacao ===", flush=True)
-    print("[Render] Baixando assets do MinIO para pasta local...", flush=True)
+    # Helper to log to both terminal and database
+    def log(msg, level="INFO"):
+        print(f"[Render] {msg}", flush=True)
+        _log_to_db(job_id, "stage3_render", f"[Render] {msg}", level)
+
+    log("=== Iniciando Stage 3: Composicao e Renderizacao ===")
+    log("Baixando assets do MinIO para pasta local...")
 
     # ── Download TTS audio ──────────────────────────────────────
-    print("[Render] Baixando audio TTS...", flush=True)
+    log("Baixando audio TTS...")
     tts_filename = _download_to_public(tts_audio_minio_path, assets_dir, "tts_audio.mp3")
-    print("[Render] Audio TTS baixado!", flush=True)
+    log("Audio TTS baixado!")
 
     # ── Download avatar ─────────────────────────────────────────
     avatar_filename = ""
     if avatar_data.get("avatar_minio_path"):
-        print("[Render] Baixando avatar (WebM com alpha)...", flush=True)
+        log("Baixando avatar (WebM com alpha)...")
         ext = "webm" if "webm" in avatar_data["avatar_minio_path"] else "mp4"
         avatar_filename = _download_to_public(
             avatar_data["avatar_minio_path"], assets_dir, f"avatar.{ext}"
         )
-        print(f"[Render] Avatar baixado: avatar.{ext}", flush=True)
+        log(f"Avatar baixado: avatar.{ext}")
     else:
-        print("[Render] AVISO: Sem avatar neste job", flush=True)
+        log("AVISO: Sem avatar neste job", "WARNING")
 
     # ── Download B-Rolls ────────────────────────────────────────
     brolls: list[dict] = []
     sorted_indices = sorted(broll_data.get("broll_paths", {}).keys())
     total_brolls = len(sorted_indices)
-    print(f"[Render] Baixando {total_brolls} B-Rolls...", flush=True)
+    log(f"Baixando {total_brolls} B-Rolls...")
     for i, idx in enumerate(sorted_indices):
         minio_path = broll_data["broll_paths"][idx]
         broll_filename = _download_to_public(minio_path, assets_dir, f"broll_{i:02d}.mp4")
@@ -108,11 +140,11 @@ async def compose_and_render(
             "durationInFrames": duration_frames,
             "alt": alt,
         })
-        print(f"[Render] B-Roll {i+1}/{total_brolls} baixado", flush=True)
-    print(f"[Render] Todos {total_brolls} B-Rolls baixados!", flush=True)
+        log(f"B-Roll {i+1}/{total_brolls} baixado")
+    log(f"Todos {total_brolls} B-Rolls baixados!")
 
     # ── Caption words ───────────────────────────────────────────
-    print(f"[Render] Gerando legendas ({len(broll_data.get('word_timestamps', []))} palavras)...", flush=True)
+    log(f"Gerando legendas ({len(broll_data.get('word_timestamps', []))} palavras)...")
     captions: list[dict] = []
     for wt in broll_data.get("word_timestamps", []):
         captions.append({
@@ -120,10 +152,10 @@ async def compose_and_render(
             "start": wt.get("start", 0),
             "end": wt.get("end", 0),
         })
-    print(f"[Render] Legendas: {len(captions)} palavras sincronizadas", flush=True)
+    log(f"Legendas: {len(captions)} palavras sincronizadas")
 
     # ── Scenes ──────────────────────────────────────────────────
-    print(f"[Render] Montando {len(broll_data.get('scenes', []))} cenas...", flush=True)
+    log(f"Montando {len(broll_data.get('scenes', []))} cenas...")
     scenes: list[dict] = []
     raw_scenes = broll_data.get("scenes", [])
     for i, scene in enumerate(raw_scenes):
@@ -142,15 +174,15 @@ async def compose_and_render(
             "brollIndex": i if i < len(brolls) else 0,
         })
 
-    print(f"[Render] Cenas montadas: {len(scenes)} blocos", flush=True)
+    log(f"Cenas montadas: {len(scenes)} blocos")
 
     # ── SFX ─────────────────────────────────────────────────────
-    print("[Render] Configurando efeitos sonoros (SFX)...", flush=True)
+    log("Configurando efeitos sonoros (SFX)...")
     sfx: list[dict] = []
 
     # Always start with a Ding at frame 0
     if sfx_paths and "ding" in sfx_paths:
-        print("[Render] Baixando SFX Ding (inicio do video)...", flush=True)
+        log("Baixando SFX Ding (inicio do video)...")
         ding_filename = _download_to_public(sfx_paths["ding"], assets_dir, "sfx_ding.mp3")
         sfx.append({
             "url": f"assets/{ding_filename}",
@@ -184,29 +216,29 @@ async def compose_and_render(
             })
 
     # Strip internal _type field
-    print(f"[Render] SFX configurados: {len(sfx)} efeitos sonoros", flush=True)
+    log(f"SFX configurados: {len(sfx)} efeitos sonoros")
     for item in sfx:
         item.pop("_type", None)
 
     # ── Download music ──────────────────────────────────────────
     music_url = ""
     if music_path:
-        print("[Render] Baixando musica de fundo...", flush=True)
+        log("Baixando musica de fundo...")
         music_filename = _download_to_public(music_path, assets_dir, "music.mp3")
         music_url = f"assets/{music_filename}"
-        print("[Render] Musica de fundo baixada!", flush=True)
+        log("Musica de fundo baixada!")
     else:
-        print("[Render] Sem musica de fundo neste job", flush=True)
+        log("Sem musica de fundo neste job")
 
     # ── Calculate duration ──────────────────────────────────────
     total_duration = broll_data.get(
         "total_duration", avatar_data.get("duration", 60)
     )
     duration_in_frames = int(total_duration * fps)
-    print(f"[Render] Duracao total: {total_duration:.1f}s ({duration_in_frames} frames a {fps}fps)", flush=True)
+    log(f"Duracao total: {total_duration:.1f}s ({duration_in_frames} frames a {fps}fps)")
 
     # ── Build composition props ─────────────────────────────────
-    print("[Render] Montando props da composicao Remotion...", flush=True)
+    log("Montando props da composicao Remotion...")
     composition_props = {
         "jobId": job_id,
         "model": "news_tradicional",
@@ -234,20 +266,20 @@ async def compose_and_render(
     )
 
     # ── Write props to temp file ────────────────────────────────
-    print("[Render] Salvando props JSON...", flush=True)
+    log("Salvando props JSON...")
     tmp_dir = tempfile.mkdtemp(prefix=f"render_{job_id}_")
     props_file = os.path.join(tmp_dir, "props.json")
     output_file = os.path.join(tmp_dir, "output.mp4")
 
     with open(props_file, "w", encoding="utf-8") as f:
         f.write(props_json)
-    print(f"[Render] Props salvo: {len(props_json)} bytes", flush=True)
+    log(f"Props salvo: {len(props_json)} bytes")
 
     # ── Render with retry logic ─────────────────────────────────
-    print(f"[Render] === Iniciando renderizacao Remotion ===", flush=True)
-    print(f"[Render] Resolucao: 1080x1920 @ {fps}fps", flush=True)
-    print(f"[Render] Duracao: {duration_in_frames} frames ({total_duration:.1f}s)", flush=True)
-    print(f"[Render] Assets: {total_brolls} B-Rolls, {len(captions)} palavras, {len(sfx)} SFX", flush=True)
+    log("=== Iniciando renderizacao Remotion ===")
+    log(f"Resolucao: 1080x1920 @ {fps}fps")
+    log(f"Duracao: {duration_in_frames} frames ({total_duration:.1f}s)")
+    log(f"Assets: {total_brolls} B-Rolls, {len(captions)} palavras, {len(sfx)} SFX")
 
     render_cmd = [
         "npx", "tsx",
@@ -256,10 +288,12 @@ async def compose_and_render(
         "--output", output_file,
     ]
 
+    last_pct = -1  # Track last logged percentage
+
     max_retries = 3
     for attempt in range(1, max_retries + 1):
-        print(f"[Render] Tentativa {attempt}/{max_retries}...", flush=True)
-        print(f"[Render] Bundling Remotion project...", flush=True)
+        log(f"Tentativa {attempt}/{max_retries}...")
+        log("Bundling Remotion project...")
 
         proc = subprocess.Popen(
             render_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -271,12 +305,24 @@ async def compose_and_render(
             for line in proc.stderr:
                 line = line.rstrip()
                 stderr_lines.append(line)
-                if "[render]" in line:
+                if "[render] Progress:" in line:
+                    # Log every 5% to frontend
+                    try:
+                        pct = float(line.split("Progress:")[1].strip().replace("%", ""))
+                        pct_int = int(pct)
+                        if pct_int >= last_pct + 5:
+                            last_pct = pct_int
+                            log(f"Renderizando... {pct_int}%")
+                    except Exception:
+                        pass
+                    print(f"[Render] {line}", flush=True)
+                elif "[render]" in line:
+                    log(line)
                     print(f"[Render] {line}", flush=True)
             proc.wait(timeout=900)
         except subprocess.TimeoutExpired:
             proc.kill()
-            print(f"[Render] TIMEOUT: Render excedeu 15 minutos (tentativa {attempt})", flush=True)
+            log(f"TIMEOUT: Render excedeu 15 minutos (tentativa {attempt})", "ERROR")
             if attempt < max_retries:
                 import time
                 time.sleep(5)
@@ -285,15 +331,14 @@ async def compose_and_render(
 
         if proc.returncode == 0 and os.path.exists(output_file):
             file_size = os.path.getsize(output_file) / (1024 * 1024)
-            print(f"[Render] === RENDER CONCLUIDO COM SUCESSO! ===", flush=True)
-            print(f"[Render] Arquivo: {file_size:.1f}MB", flush=True)
+            log(f"=== RENDER CONCLUIDO COM SUCESSO! === ({file_size:.1f}MB)", "SUCCESS")
             break  # Success
 
         stderr_full = "\n".join(stderr_lines)
-        print(f"[Render] ERRO na tentativa {attempt}: {stderr_full[-300:]}", flush=True)
+        log(f"ERRO na tentativa {attempt}: {stderr_full[-300:]}", "ERROR")
 
         if attempt < max_retries:
-            print(f"[Render] Aguardando 5s antes de tentar novamente...", flush=True)
+            log("Aguardando 5s antes de tentar novamente...")
             import time
             time.sleep(5)
         else:
@@ -303,7 +348,7 @@ async def compose_and_render(
         raise RuntimeError("[Render] Render concluido mas arquivo nao encontrado")
 
     # ── Upload rendered video to MinIO ──────────────────────────
-    print("[Render] Fazendo upload do video final para MinIO...", flush=True)
+    log("Fazendo upload do video final para MinIO...")
     import re, unicodedata
     topic_ascii = unicodedata.normalize('NFKD', topic[:60]).encode('ascii', 'ignore').decode()
     topic_slug = re.sub(r'[^a-zA-Z0-9\s-]', '', topic_ascii).strip().replace(' ', '_').lower()
@@ -311,11 +356,11 @@ async def compose_and_render(
     output_minio_path = asset_manager.save_asset_from_file(
         job_id, "output", output_filename, output_file, "video/mp4"
     )
-    print(f"[Render] Video salvo no MinIO: {output_minio_path}", flush=True)
-    print(f"[Render] === PIPELINE FINALIZADO COM SUCESSO! ===", flush=True)
+    log(f"Video salvo no MinIO: {output_minio_path}", "SUCCESS")
+    log("=== PIPELINE FINALIZADO COM SUCESSO! ===", "SUCCESS")
 
     # ── Cleanup ─────────────────────────────────────────────────
-    print("[Render] Limpando arquivos temporarios...", flush=True)
+    log("Limpando arquivos temporarios...")
     shutil.rmtree(tmp_dir, ignore_errors=True)
     # Clean assets from public/
     for f in os.listdir(assets_dir):
