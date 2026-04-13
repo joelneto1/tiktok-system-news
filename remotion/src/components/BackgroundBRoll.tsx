@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Img, Video, Sequence } from 'remotion';
+import { AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile } from 'remotion';
 import type { BRollItem } from '../types';
 import { secondsToFrames } from '../utils/timing';
 
@@ -12,9 +12,7 @@ interface BackgroundBRollProps {
 
 /**
  * Layer 0: Sequential B-Roll playback with hard cuts.
- *
- * Uses OffthreadVideo instead of Video for more reliable rendering
- * (handles videos shorter than expected without crashing).
+ * Uses OffthreadVideo with staticFile for reliable local loading.
  */
 export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
   brolls,
@@ -28,15 +26,13 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
 
   const brollDurationFrames = secondsToFrames(brollDurationSeconds, fps);
   const slotsNeeded = Math.ceil(durationInFrames / brollDurationFrames);
+  const bannerHeight = 460;
 
   const mediaStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
   };
-
-  // B-Rolls start below the banner area (460px from top)
-  const bannerHeight = 460;
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
@@ -46,6 +42,7 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
         const remaining = durationInFrames - from;
         const clipDuration = Math.min(brollDurationFrames, remaining);
         const isVideo = isVideoUrl(broll.url);
+        const src = broll.url.startsWith('http') ? broll.url : staticFile(broll.url);
 
         if (clipDuration <= 0) return null;
 
@@ -53,13 +50,9 @@ export const BackgroundBRoll: React.FC<BackgroundBRollProps> = ({
           <Sequence key={i} from={from} durationInFrames={clipDuration}>
             <AbsoluteFill style={{ top: bannerHeight }}>
               {isVideo ? (
-                <Video
-                  src={broll.url}
-                  muted
-                  style={mediaStyle}
-                />
+                <OffthreadVideo src={src} muted style={mediaStyle} />
               ) : (
-                <Img src={broll.url} style={mediaStyle} />
+                <Img src={src} style={mediaStyle} />
               )}
             </AbsoluteFill>
           </Sequence>

@@ -173,6 +173,9 @@ async function main() {
     `[render] Resolution: ${props.width}x${props.height} @ ${props.fps}fps`,
   );
 
+  const dynamicTimeout = Math.max(120000, Math.round(props.durationInFrames / 3) * 1000);
+  console.error(`[render] Timeout: ${dynamicTimeout}ms, Concurrency: 50%`);
+
   await renderMedia({
     composition: {
       ...composition,
@@ -185,7 +188,8 @@ async function main() {
     codec: 'h264',
     outputLocation: resolvedOutput,
     inputProps: props as unknown as Record<string, unknown>,
-    timeoutInMilliseconds: 120000,
+    timeoutInMilliseconds: dynamicTimeout,
+    concurrency: '50%',
     onProgress: ({ progress }) => {
       const pct = (progress * 100).toFixed(1);
       process.stderr.write(`\r[render] Progress: ${pct}%`);
