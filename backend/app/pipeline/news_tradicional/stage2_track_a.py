@@ -103,6 +103,10 @@ async def process_avatar(
 
         log("Enviando para DreamFace...")
 
+        # Progress callback that saves to DB
+        def df_progress(msg):
+            log(f"DreamFace: {msg}")
+
         # Step 3: Run DreamFace automation
         raw_avatar_path = await dreamface_automation.process_avatar(
             account_id=str(account.id),
@@ -112,7 +116,7 @@ async def process_avatar(
             tts_audio_path=audio_local,
             project_name=f"News: {topic[:50]}",
             timeout=600,
-            on_progress=on_progress,
+            on_progress=df_progress,
         )
 
         # Mark account as successfully used
