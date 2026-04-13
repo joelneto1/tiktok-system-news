@@ -93,7 +93,7 @@ async def process_brolls(
             f.write(audio_data)
 
         total_duration = await ffmpeg_processor.get_duration(audio_local)
-        log(f"1/7 Audio TTS: {len(audio_data)/1024:.0f}KB, duracao: {total_duration:.1f}s", flush=True)
+        log(f"1/7 Audio TTS: {len(audio_data)/1024:.0f}KB, duracao: {total_duration:.1f}s")
 
         # ── Step 2: Whisper transcription ─────────────────────────
         log("2/7 Transcrevendo com Whisper (word-level)...")
@@ -101,7 +101,7 @@ async def process_brolls(
         word_timestamps = await whisper_client.transcribe_to_word_timestamps(
             audio_local, language=language
         )
-        log(f"2/7 Whisper: {len(word_timestamps)} palavras transcritas", flush=True)
+        log(f"2/7 Whisper: {len(word_timestamps)} palavras transcritas")
 
         timestamps_json = json.dumps(word_timestamps, ensure_ascii=False, indent=2)
         asset_manager.save_asset(
@@ -125,7 +125,7 @@ async def process_brolls(
 
         scenes = scene_data.get("scenes", [])
         urgent_keywords = scene_data.get("urgent_keywords", [])
-        log(f"3/7 Diretor de Cena: {len(scenes)} cenas, {len(urgent_keywords)} keywords", flush=True)
+        log(f"3/7 Diretor de Cena: {len(scenes)} cenas, {len(urgent_keywords)} keywords")
 
         scene_json = json.dumps(scene_data, ensure_ascii=False, indent=2)
         asset_manager.save_asset(
@@ -149,7 +149,7 @@ async def process_brolls(
 
         max_brolls = min(len(prompts), settings.BROLL_COUNT)
         prompts = prompts[:max_brolls]
-        log(f"4/7 {len(prompts)} prompts de B-Roll extraidos:", flush=True)
+        log(f"4/7 {len(prompts)} prompts de B-Roll extraidos:")
         for i, p in enumerate(prompts):
             log(f"  [{i+1}] {p[:80]}")
 
@@ -161,13 +161,13 @@ async def process_brolls(
                 raise RuntimeError("No active Grok accounts available")
             cookies = await account_rotator.get_account_cookies(account)
             proxy = await account_rotator.get_account_proxy(account)
-        log(f"5/7 Conta Grok: {account.account_name} ({len(cookies)} cookies)", flush=True)
+        log(f"5/7 Conta Grok: {account.account_name} ({len(cookies)} cookies)")
 
         # ── Step 6: Batch generate via Grok ──────────────────────
-        log(f"6/7 Gerando {len(prompts)} B-Rolls com Grok...", flush=True)
+        log(f"6/7 Gerando {len(prompts)} B-Rolls com Grok...")
 
         def _grok_progress(done: int, total: int, msg: str) -> None:
-            log(f"6/7 B-Rolls: {done}/{total} - {msg}", flush=True)
+            log(f"6/7 B-Rolls: {done}/{total} - {msg}")
             if on_progress:
                 on_progress(f"B-Rolls: {done}/{total} - {msg}")
 
@@ -183,10 +183,10 @@ async def process_brolls(
         )
 
         await account_rotator.mark_account_used(account, success=True)
-        log(f"6/7 Grok concluido: {len(broll_local_paths)} videos gerados", flush=True)
+        log(f"6/7 Grok concluido: {len(broll_local_paths)} videos gerados")
 
         # ── Step 7: Convert to 30fps + Upload to MinIO ────────────
-        log(f"7/7 Convertendo B-Rolls para 30fps e subindo no MinIO...", flush=True)
+        log(f"7/7 Convertendo B-Rolls para 30fps e subindo no MinIO...")
 
         broll_minio_paths: dict[int, str] = {}
         for idx, local_path in broll_local_paths.items():
@@ -209,9 +209,9 @@ async def process_brolls(
                     job_id, "stage2_brolls", filename, upload_path, "video/mp4"
                 )
                 broll_minio_paths[idx] = minio_path
-                log(f"7/7 B-Roll {idx+1}/{len(prompts)} salvo no MinIO", flush=True)
+                log(f"7/7 B-Roll {idx+1}/{len(prompts)} salvo no MinIO")
 
-        log(f"CONCLUIDO: {len(broll_minio_paths)}/{len(prompts)} B-Rolls prontos!", flush=True)
+        log(f"CONCLUIDO: {len(broll_minio_paths)}/{len(prompts)} B-Rolls prontos!")
 
         return {
             "word_timestamps": word_timestamps,
