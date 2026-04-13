@@ -70,22 +70,31 @@ async def compose_and_render(
         except Exception:
             pass
 
-    print("[Stage 3] Downloading assets to public/ for staticFile()...", flush=True)
+    print("[Render] === Iniciando Stage 3: Composicao e Renderizacao ===", flush=True)
+    print("[Render] Baixando assets do MinIO para pasta local...", flush=True)
 
     # ── Download TTS audio ──────────────────────────────────────
+    print("[Render] Baixando audio TTS...", flush=True)
     tts_filename = _download_to_public(tts_audio_minio_path, assets_dir, "tts_audio.mp3")
+    print("[Render] Audio TTS baixado!", flush=True)
 
     # ── Download avatar ─────────────────────────────────────────
     avatar_filename = ""
     if avatar_data.get("avatar_minio_path"):
+        print("[Render] Baixando avatar (WebM com alpha)...", flush=True)
         ext = "webm" if "webm" in avatar_data["avatar_minio_path"] else "mp4"
         avatar_filename = _download_to_public(
             avatar_data["avatar_minio_path"], assets_dir, f"avatar.{ext}"
         )
+        print(f"[Render] Avatar baixado: avatar.{ext}", flush=True)
+    else:
+        print("[Render] AVISO: Sem avatar neste job", flush=True)
 
     # ── Download B-Rolls ────────────────────────────────────────
     brolls: list[dict] = []
     sorted_indices = sorted(broll_data.get("broll_paths", {}).keys())
+    total_brolls = len(sorted_indices)
+    print(f"[Render] Baixando {total_brolls} B-Rolls...", flush=True)
     for i, idx in enumerate(sorted_indices):
         minio_path = broll_data["broll_paths"][idx]
         broll_filename = _download_to_public(minio_path, assets_dir, f"broll_{i:02d}.mp4")
@@ -99,9 +108,11 @@ async def compose_and_render(
             "durationInFrames": duration_frames,
             "alt": alt,
         })
-    logger.info("[Stage 3] Downloaded {n} B-Rolls to public/", n=len(brolls))
+        print(f"[Render] B-Roll {i+1}/{total_brolls} baixado", flush=True)
+    print(f"[Render] Todos {total_brolls} B-Rolls baixados!", flush=True)
 
     # ── Caption words ───────────────────────────────────────────
+    print(f"[Render] Gerando legendas ({len(broll_data.get('word_timestamps', []))} palavras)...", flush=True)
     captions: list[dict] = []
     for wt in broll_data.get("word_timestamps", []):
         captions.append({
@@ -109,8 +120,10 @@ async def compose_and_render(
             "start": wt.get("start", 0),
             "end": wt.get("end", 0),
         })
+    print(f"[Render] Legendas: {len(captions)} palavras sincronizadas", flush=True)
 
     # ── Scenes ──────────────────────────────────────────────────
+    print(f"[Render] Montando {len(broll_data.get('scenes', []))} cenas...", flush=True)
     scenes: list[dict] = []
     raw_scenes = broll_data.get("scenes", [])
     for i, scene in enumerate(raw_scenes):
@@ -129,11 +142,15 @@ async def compose_and_render(
             "brollIndex": i if i < len(brolls) else 0,
         })
 
+    print(f"[Render] Cenas montadas: {len(scenes)} blocos", flush=True)
+
     # ── SFX ─────────────────────────────────────────────────────
+    print("[Render] Configurando efeitos sonoros (SFX)...", flush=True)
     sfx: list[dict] = []
 
     # Always start with a Ding at frame 0
     if sfx_paths and "ding" in sfx_paths:
+        print("[Render] Baixando SFX Ding (inicio do video)...", flush=True)
         ding_filename = _download_to_public(sfx_paths["ding"], assets_dir, "sfx_ding.mp3")
         sfx.append({
             "url": f"assets/{ding_filename}",
@@ -167,22 +184,29 @@ async def compose_and_render(
             })
 
     # Strip internal _type field
+    print(f"[Render] SFX configurados: {len(sfx)} efeitos sonoros", flush=True)
     for item in sfx:
         item.pop("_type", None)
 
     # ── Download music ──────────────────────────────────────────
     music_url = ""
     if music_path:
+        print("[Render] Baixando musica de fundo...", flush=True)
         music_filename = _download_to_public(music_path, assets_dir, "music.mp3")
         music_url = f"assets/{music_filename}"
+        print("[Render] Musica de fundo baixada!", flush=True)
+    else:
+        print("[Render] Sem musica de fundo neste job", flush=True)
 
     # ── Calculate duration ──────────────────────────────────────
     total_duration = broll_data.get(
         "total_duration", avatar_data.get("duration", 60)
     )
     duration_in_frames = int(total_duration * fps)
+    print(f"[Render] Duracao total: {total_duration:.1f}s ({duration_in_frames} frames a {fps}fps)", flush=True)
 
     # ── Build composition props ─────────────────────────────────
+    print("[Render] Montando props da composicao Remotion...", flush=True)
     composition_props = {
         "jobId": job_id,
         "model": "news_tradicional",
@@ -210,18 +234,20 @@ async def compose_and_render(
     )
 
     # ── Write props to temp file ────────────────────────────────
+    print("[Render] Salvando props JSON...", flush=True)
     tmp_dir = tempfile.mkdtemp(prefix=f"render_{job_id}_")
     props_file = os.path.join(tmp_dir, "props.json")
     output_file = os.path.join(tmp_dir, "output.mp4")
 
     with open(props_file, "w", encoding="utf-8") as f:
         f.write(props_json)
+    print(f"[Render] Props salvo: {len(props_json)} bytes", flush=True)
 
     # ── Render with retry logic ─────────────────────────────────
-    logger.info(
-        "[Stage 3] Rendering video ({frames} frames, {dur:.1f}s)...",
-        frames=duration_in_frames, dur=total_duration,
-    )
+    print(f"[Render] === Iniciando renderizacao Remotion ===", flush=True)
+    print(f"[Render] Resolucao: 1080x1920 @ {fps}fps", flush=True)
+    print(f"[Render] Duracao: {duration_in_frames} frames ({total_duration:.1f}s)", flush=True)
+    print(f"[Render] Assets: {total_brolls} B-Rolls, {len(captions)} palavras, {len(sfx)} SFX", flush=True)
 
     render_cmd = [
         "npx", "tsx",
@@ -232,7 +258,8 @@ async def compose_and_render(
 
     max_retries = 3
     for attempt in range(1, max_retries + 1):
-        logger.info("[Stage 3] Render attempt {a}/{m}", a=attempt, m=max_retries)
+        print(f"[Render] Tentativa {attempt}/{max_retries}...", flush=True)
+        print(f"[Render] Bundling Remotion project...", flush=True)
 
         proc = subprocess.Popen(
             render_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -245,13 +272,11 @@ async def compose_and_render(
                 line = line.rstrip()
                 stderr_lines.append(line)
                 if "[render]" in line:
-                    # Use print + flush so Celery captures it in logs
-                    import sys
-                    print(f"[Stage 3] {line}", file=sys.stderr, flush=True)
+                    print(f"[Render] {line}", flush=True)
             proc.wait(timeout=900)
         except subprocess.TimeoutExpired:
             proc.kill()
-            print(f"[Stage 3] Render timed out (attempt {attempt})", flush=True)
+            print(f"[Render] TIMEOUT: Render excedeu 15 minutos (tentativa {attempt})", flush=True)
             if attempt < max_retries:
                 import time
                 time.sleep(5)
@@ -259,22 +284,26 @@ async def compose_and_render(
             raise RuntimeError("[Stage 3] Remotion render timed out after all retries")
 
         if proc.returncode == 0 and os.path.exists(output_file):
-            print(f"[Stage 3] Render completed successfully!", flush=True)
+            file_size = os.path.getsize(output_file) / (1024 * 1024)
+            print(f"[Render] === RENDER CONCLUIDO COM SUCESSO! ===", flush=True)
+            print(f"[Render] Arquivo: {file_size:.1f}MB", flush=True)
             break  # Success
 
         stderr_full = "\n".join(stderr_lines)
-        print(f"[Stage 3] Render failed (attempt {attempt}): {stderr_full[-500:]}", flush=True)
+        print(f"[Render] ERRO na tentativa {attempt}: {stderr_full[-300:]}", flush=True)
 
         if attempt < max_retries:
+            print(f"[Render] Aguardando 5s antes de tentar novamente...", flush=True)
             import time
             time.sleep(5)
         else:
             raise RuntimeError(f"Remotion render failed after {max_retries} attempts: {stderr_full[-1000:]}")
 
     if not os.path.exists(output_file):
-        raise RuntimeError("[Stage 3] Render completed but output file not found")
+        raise RuntimeError("[Render] Render concluido mas arquivo nao encontrado")
 
     # ── Upload rendered video to MinIO ──────────────────────────
+    print("[Render] Fazendo upload do video final para MinIO...", flush=True)
     import re, unicodedata
     topic_ascii = unicodedata.normalize('NFKD', topic[:60]).encode('ascii', 'ignore').decode()
     topic_slug = re.sub(r'[^a-zA-Z0-9\s-]', '', topic_ascii).strip().replace(' ', '_').lower()
@@ -282,10 +311,11 @@ async def compose_and_render(
     output_minio_path = asset_manager.save_asset_from_file(
         job_id, "output", output_filename, output_file, "video/mp4"
     )
-
-    logger.success("[Stage 3] Video rendered and uploaded: {path}", path=output_minio_path)
+    print(f"[Render] Video salvo no MinIO: {output_minio_path}", flush=True)
+    print(f"[Render] === PIPELINE FINALIZADO COM SUCESSO! ===", flush=True)
 
     # ── Cleanup ─────────────────────────────────────────────────
+    print("[Render] Limpando arquivos temporarios...", flush=True)
     shutil.rmtree(tmp_dir, ignore_errors=True)
     # Clean assets from public/
     for f in os.listdir(assets_dir):
