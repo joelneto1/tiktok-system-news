@@ -227,39 +227,74 @@ class DreamFaceAutomation:
         count_before = await thumbs_before.count()
         print(f"[DreamFace] Thumbnails ANTES do upload: {count_before}", flush=True)
 
-        # Upload file via _btnContent click (the actual upload button) + filechooser
+        # Upload file — read file bytes and inject via JavaScript DataTransfer
         uploaded = False
 
-        # Approach 1: Click _btnContent (the + icon button) to trigger file chooser
-        print("[DreamFace] Clicando no botao de upload (_btnContent)...", flush=True)
-        try:
-            btn = page.locator('[class*="_btnContent"]')
-            if await btn.count() > 0:
-                async with page.expect_file_chooser(timeout=10000) as fc_info:
-                    await btn.first.click()
-                file_chooser = await fc_info.value
-                await file_chooser.set_files(video_path)
-                print("[DreamFace] Arquivo enviado via _btnContent + filechooser!", flush=True)
-                uploaded = True
-            else:
-                print("[DreamFace] _btnContent nao encontrado", flush=True)
-        except Exception as e:
-            print(f"[DreamFace] _btnContent falhou: {e}", flush=True)
+        print("[DreamFace] Lendo arquivo local pra upload...", flush=True)
+        import base64
+        with open(video_path, "rb") as f:
+            file_bytes = f.read()
+        file_b64 = base64.b64encode(file_bytes).decode()
+        file_name = os.path.basename(video_path)
+        file_size = len(file_bytes)
+        print(f"[DreamFace] Arquivo: {file_name} ({file_size/1024/1024:.1f}MB)", flush=True)
 
-        # Approach 2: Fallback - click _uploadCard
+        # Approach 1: Inject file via JavaScript DataTransfer on the input
+        print("[DreamFace] Injetando arquivo via JavaScript DataTransfer...", flush=True)
+        try:
+            result = await page.evaluate(f'''(data) => {{
+                const b64 = data.b64;
+                const fileName = data.fileName;
+                const byteString = atob(b64);
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {{
+                    ia[i] = byteString.charCodeAt(i);
+                }}
+                const blob = new Blob([ab], {{ type: 'video/mp4' }});
+                const file = new File([blob], fileName, {{ type: 'video/mp4', lastModified: Date.now() }});
+
+                const input = document.querySelector('input[type="file"]');
+                if (!input) return 'NO_INPUT';
+
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+
+                // Dispatch all possible events
+                input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+
+                // Also try React's synthetic event
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype, 'value'
+                )?.set;
+                if (nativeInputValueSetter) {{
+                    nativeInputValueSetter.call(input, '');
+                }}
+
+                return 'OK:' + input.files.length + ' files set';
+            }}''', {"b64": file_b64, "fileName": file_name})
+            print(f"[DreamFace] JavaScript DataTransfer result: {result}", flush=True)
+            if result and result.startswith("OK"):
+                uploaded = True
+        except Exception as e:
+            print(f"[DreamFace] JavaScript DataTransfer falhou: {e}", flush=True)
+
+        # Approach 2: Fallback - filechooser via _btnContent click
         if not uploaded:
-            print("[DreamFace] Tentando via _uploadCard...", flush=True)
+            print("[DreamFace] Tentando via _btnContent + filechooser...", flush=True)
             try:
-                upload_card = page.locator('[class*="_uploadCard"]')
-                if await upload_card.count() > 0:
+                btn = page.locator('[class*="_btnContent"]')
+                if await btn.count() > 0:
                     async with page.expect_file_chooser(timeout=10000) as fc_info:
-                        await upload_card.first.click()
+                        await btn.first.click()
                     file_chooser = await fc_info.value
                     await file_chooser.set_files(video_path)
-                    print("[DreamFace] Arquivo enviado via _uploadCard + filechooser!", flush=True)
+                    print("[DreamFace] Arquivo enviado via filechooser!", flush=True)
                     uploaded = True
             except Exception as e:
-                print(f"[DreamFace] _uploadCard falhou: {e}", flush=True)
+                print(f"[DreamFace] Filechooser falhou: {e}", flush=True)
 
         if not uploaded:
             print("[DreamFace] Tentando via filechooser...", flush=True)
