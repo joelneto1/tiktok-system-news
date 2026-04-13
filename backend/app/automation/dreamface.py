@@ -227,37 +227,39 @@ class DreamFaceAutomation:
         count_before = await thumbs_before.count()
         print(f"[DreamFace] Thumbnails ANTES do upload: {count_before}", flush=True)
 
-        # Upload file via _uploadCard click + filechooser
+        # Upload file via _btnContent click (the actual upload button) + filechooser
         uploaded = False
 
-        # Approach 1: Click _uploadCard_ny49l_1 to trigger file chooser
-        print("[DreamFace] Clicando na area de upload (_uploadCard)...", flush=True)
+        # Approach 1: Click _btnContent (the + icon button) to trigger file chooser
+        print("[DreamFace] Clicando no botao de upload (_btnContent)...", flush=True)
         try:
-            upload_card = page.locator('[class*="_uploadCard"]')
-            if await upload_card.count() > 0:
+            btn = page.locator('[class*="_btnContent"]')
+            if await btn.count() > 0:
                 async with page.expect_file_chooser(timeout=10000) as fc_info:
-                    await upload_card.first.click()
+                    await btn.first.click()
                 file_chooser = await fc_info.value
                 await file_chooser.set_files(video_path)
-                print("[DreamFace] Arquivo enviado via _uploadCard + filechooser!", flush=True)
+                print("[DreamFace] Arquivo enviado via _btnContent + filechooser!", flush=True)
                 uploaded = True
             else:
-                print("[DreamFace] _uploadCard nao encontrado", flush=True)
+                print("[DreamFace] _btnContent nao encontrado", flush=True)
         except Exception as e:
-            print(f"[DreamFace] _uploadCard falhou: {e}", flush=True)
+            print(f"[DreamFace] _btnContent falhou: {e}", flush=True)
 
-        # Approach 2: Fallback - direct input set + events
+        # Approach 2: Fallback - click _uploadCard
         if not uploaded:
-            print("[DreamFace] Tentando via input[type=file] direto...", flush=True)
+            print("[DreamFace] Tentando via _uploadCard...", flush=True)
             try:
-                file_input = page.locator('input[type="file"]')
-                if await file_input.count() > 0:
-                    await file_input.first.set_input_files(video_path)
-                    await file_input.first.dispatch_event("change")
-                    print("[DreamFace] Arquivo enviado via input + change event", flush=True)
+                upload_card = page.locator('[class*="_uploadCard"]')
+                if await upload_card.count() > 0:
+                    async with page.expect_file_chooser(timeout=10000) as fc_info:
+                        await upload_card.first.click()
+                    file_chooser = await fc_info.value
+                    await file_chooser.set_files(video_path)
+                    print("[DreamFace] Arquivo enviado via _uploadCard + filechooser!", flush=True)
                     uploaded = True
             except Exception as e:
-                print(f"[DreamFace] Input direto falhou: {e}", flush=True)
+                print(f"[DreamFace] _uploadCard falhou: {e}", flush=True)
 
         if not uploaded:
             print("[DreamFace] Tentando via filechooser...", flush=True)
