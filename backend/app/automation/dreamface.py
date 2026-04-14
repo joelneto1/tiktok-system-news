@@ -416,16 +416,13 @@ class DreamFaceAutomation:
         Finds our specific project by name (news_{job_id[:8]}.mp3) and
         waits for it to have a video/thumbnail result.
         """
-        # Extract short job id from project name for searching
-        search_term = ""
+        # Extract audio filename from project name for searching on /creation
+        # Project name: "News 6687e936: topic..." -> audio: "news_6687e936"
+        audio_name = ""
         if project_name:
-            # Project name is like "News 6687e936: topic..."
             parts = project_name.split(":")
             if parts:
-                search_term = parts[0].strip()  # "News 6687e936"
-
-        # Build audio filename to search for on /creation page
-        audio_name = search_term  # e.g. "news_6687e936"
+                audio_name = parts[0].strip().replace("News ", "news_")  # "news_6687e936"
         print(f"[DreamFace] Aguardando video ficar pronto (timeout: {timeout}s, busca: {audio_name})...", flush=True)
 
         start = asyncio.get_event_loop().time()
