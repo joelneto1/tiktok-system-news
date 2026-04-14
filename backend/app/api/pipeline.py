@@ -149,7 +149,15 @@ async def enqueue_pipeline(
     db.add(video)
     await db.flush()
     await db.refresh(video)
-    await log_activity(db, "INFO", f"Pipeline adicionado na fila: {data.topic[:50]}...", stage="pipeline", video_id=str(video.id))
+
+    # Dispatch Celery task immediately (queues behind any running job)
+    from app.queue.tasks import pipeline_task
+    task = pipeline_task.delay(str(video.id), data.model_type)
+    video.status = "processing"
+    video.celery_task_id = task.id
+    await db.flush()
+
+    await log_activity(db, "INFO", f"Pipeline na fila: {data.topic[:50]}... (task={task.id})", stage="pipeline", video_id=str(video.id))
     return _video_to_out(video)
 
 
