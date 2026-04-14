@@ -1,41 +1,18 @@
 import { useState } from 'react'
 import PipelineForm, { type PipelineFormData } from '@/components/pipeline/PipelineForm'
 import JobHistoryTable from '@/components/pipeline/JobHistoryTable'
-import { startPipeline, enqueuePipeline } from '@/api/pipeline'
 
 export default function PipelinePage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-  async function handleSubmit(data: PipelineFormData) {
-    try {
-      await startPipeline({
-        topic: data.topic,
-        language: data.language,
-        model_type: data.model,
-        reference_id: data.referenceId || undefined,
-        audio_id: data.audioId || undefined,
-      })
-      // Refresh job history immediately
-      setRefreshTrigger((prev) => prev + 1)
-    } catch (err) {
-      console.error('Failed to start pipeline:', err)
-    }
+  function handleSubmit(_data: PipelineFormData) {
+    // PipelineForm already calls the API — just refresh the job history
+    setRefreshTrigger((prev) => prev + 1)
   }
 
-  async function handleQueue(data: PipelineFormData) {
-    try {
-      await enqueuePipeline({
-        topic: data.topic,
-        language: data.language,
-        model_type: data.model,
-        reference_id: data.referenceId || undefined,
-        audio_id: data.audioId || undefined,
-      })
-      // Refresh job history immediately
-      setRefreshTrigger((prev) => prev + 1)
-    } catch (err) {
-      console.error('Failed to enqueue pipeline:', err)
-    }
+  function handleQueue(_data: PipelineFormData) {
+    // PipelineForm already calls the API — just refresh the job history
+    setRefreshTrigger((prev) => prev + 1)
   }
 
   return (
