@@ -104,6 +104,21 @@ async def _run_pipeline(task, video_id: str, model_type: str) -> None:
         audio_id = (video.metadata_json or {}).get("audio_id")
         reference_id = video.reference_id
 
+        # Load GenAIPro API key from Settings (overrides env var)
+        genai_key_result = await db.execute(
+            select(SystemSettings).where(SystemSettings.key == "genai_api_key")
+        )
+        genai_key_setting = genai_key_result.scalar_one_or_none()
+        if genai_key_setting:
+            genai_key = genai_key_setting.value
+            if genai_key_setting.is_encrypted:
+                from app.utils.crypto import decrypt_value
+                genai_key = decrypt_value(genai_key)
+            # Update the service singleton with the key from Settings
+            from app.services.genaipro import genaipro_client
+            genaipro_client.api_key = genai_key
+            print(f"[Pipeline] GenAIPro API key carregada do Settings", flush=True)
+
         # Mark as processing
         video.status = "processing"
         video.started_at = datetime.now(timezone.utc)
