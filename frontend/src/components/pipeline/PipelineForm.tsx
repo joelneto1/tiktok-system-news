@@ -28,6 +28,7 @@ interface PipelineFormProps {
 export interface PipelineFormData {
   topic: string
   referenceId: string | null
+  audioId: string | null
   language: string
   model: string
 }
@@ -60,6 +61,7 @@ export default function PipelineForm({ onSubmit, onQueue, className }: PipelineF
     return {
       topic,
       referenceId: selectedReference,
+      audioId: selectedAudio,
       language,
       model,
     }

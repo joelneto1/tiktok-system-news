@@ -104,9 +104,10 @@ const ACTION_BTN =
 
 interface JobHistoryTableProps {
   className?: string
+  refreshTrigger?: number
 }
 
-export default function JobHistoryTable({ className }: JobHistoryTableProps) {
+export default function JobHistoryTable({ className, refreshTrigger }: JobHistoryTableProps) {
   const navigate = useNavigate()
   const [jobs, setJobs] = useState<Job[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -133,10 +134,10 @@ export default function JobHistoryTable({ className }: JobHistoryTableProps) {
     }
   }, [])
 
-  // Initial fetch
+  // Initial fetch + refresh when trigger changes
   useEffect(() => {
     fetchJobs().finally(() => setIsLoading(false))
-  }, [fetchJobs])
+  }, [fetchJobs, refreshTrigger])
 
   // Auto-refresh when there are active jobs
   useEffect(() => {
