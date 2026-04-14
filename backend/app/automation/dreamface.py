@@ -389,32 +389,67 @@ class DreamFaceAutomation:
         await page.wait_for_timeout(3000)
 
     async def _click_generate(self, page: Page) -> Page:
-        """Click Generate button and navigate to /creation page."""
+        """Click Generate button — opens /creation page in new tab."""
         print("[DreamFace] Clicando em Gerar...", flush=True)
 
-        # Click the Gerar button
-        try:
-            await page.get_by_role("button", name="Gerar").click()
-            print("[DreamFace] Botao Gerar clicado!", flush=True)
-        except Exception as e:
-            print(f"[DreamFace] Erro ao clicar Gerar: {e}", flush=True)
-            # Try JavaScript click
-            await page.evaluate('''() => {
-                const btns = document.querySelectorAll('button');
-                for (const b of btns) {
-                    if (b.innerText.includes('Gerar') || b.innerText.includes('Generate')) {
-                        b.click(); return;
-                    }
+        # Screenshot before clicking to debug
+        await page.screenshot(path="/tmp/dreamface_before_gerar.png")
+
+        # Check if button is enabled
+        btn_info = await page.evaluate('''() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                if (b.innerText.includes('Gerar') || b.innerText.includes('Generate')) {
+                    return {text: b.innerText.substring(0,20), disabled: b.disabled, visible: b.offsetParent !== null};
                 }
-            }''')
-            print("[DreamFace] Gerar clicado via JS", flush=True)
+            }
+            return null;
+        }''')
+        print(f"[DreamFace] Botao Gerar: {btn_info}", flush=True)
 
-        # Wait a moment for DreamFace to process the click
-        await page.wait_for_timeout(5000)
+        # Try clicking with expect_page (longer timeout)
+        try:
+            async with page.context.expect_page(timeout=60000) as new_page_info:
+                # Use JavaScript click to bypass any overlay
+                await page.evaluate('''() => {
+                    const btns = document.querySelectorAll('button');
+                    for (const b of btns) {
+                        if (b.innerText.includes('Gerar') || b.innerText.includes('Generate')) {
+                            b.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                }''')
+                print("[DreamFace] Gerar clicado via JS, esperando nova pagina (60s)...", flush=True)
 
-        # Return the same page — _wait_for_completion will navigate to /creation
-        print(f"[DreamFace] Geracao iniciada! Pagina: {page.url}", flush=True)
-        return page
+            creation_page = await new_page_info.value
+            await creation_page.wait_for_load_state("networkidle", timeout=30000)
+            print(f"[DreamFace] Nova pagina aberta: {creation_page.url}", flush=True)
+            return creation_page
+        except Exception as e:
+            print(f"[DreamFace] Expect_page falhou: {e}", flush=True)
+            await page.screenshot(path="/tmp/dreamface_after_gerar.png")
+            print(f"[DreamFace] URL apos clique: {page.url}", flush=True)
+
+            # Check all pages in context
+            pages = page.context.pages
+            print(f"[DreamFace] Total de abas abertas: {len(pages)}", flush=True)
+            for i, p in enumerate(pages):
+                print(f"[DreamFace]   Aba {i}: {p.url}", flush=True)
+
+            # If there's a second page (creation), use it
+            if len(pages) > 1:
+                for p in pages:
+                    if "creation" in p.url:
+                        print(f"[DreamFace] Encontrou aba /creation: {p.url}", flush=True)
+                        return p
+                # Use last page
+                return pages[-1]
+
+            # Return same page — _wait_for_completion navigates to /creation
+            print("[DreamFace] Usando mesma pagina (vai navegar pra /creation)", flush=True)
+            return page
 
     async def _wait_for_completion(
         self,
