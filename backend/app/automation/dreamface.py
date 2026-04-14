@@ -424,88 +424,76 @@ class DreamFaceAutomation:
             if parts:
                 search_term = parts[0].strip()  # "News 6687e936"
 
-        print(f"[DreamFace] Aguardando conclusao (timeout: {timeout}s, projeto: {search_term})...", flush=True)
+        # Build audio filename to search for on /creation page
+        audio_name = search_term  # e.g. "news_6687e936"
+        print(f"[DreamFace] Aguardando video ficar pronto (timeout: {timeout}s, busca: {audio_name})...", flush=True)
 
         start = asyncio.get_event_loop().time()
-        check_interval = 10
-        min_wait = 180  # Minimum 3 minutes before accepting completion
+        check_interval = 30  # Check /creation every 30 seconds
+        min_wait = 120  # Minimum 2 minutes before checking /creation
 
         while asyncio.get_event_loop().time() - start < timeout:
             elapsed = int(asyncio.get_event_loop().time() - start)
 
+            if elapsed < min_wait:
+                print(f"[DreamFace] Aguardando... ({elapsed}s, checagem em {min_wait - elapsed}s)", flush=True)
+                if on_progress:
+                    on_progress(f"Processing... ({elapsed}s)")
+                await page.wait_for_timeout(10000)
+                continue
+
+            # Navigate to /creation and check if our video exists
             try:
-                # Check if our specific project has a video ready
-                # Look for card with our project name that has a video/completed indicator
-                has_our_video = await page.evaluate('''(searchTerm) => {
-                    // Find all cards on creation page
-                    const cards = document.querySelectorAll('[class*="creationList"] > *, [class*="creation"] [class*="card"], [class*="item"]');
-                    for (const card of cards) {
-                        const text = card.innerText || '';
-                        // Check if this card is our project
-                        if (searchTerm && !text.includes(searchTerm)) continue;
+                print(f"[DreamFace] Verificando /creation... ({elapsed}s)", flush=True)
+                await page.goto("https://www.dreamfaceapp.com/creation", wait_until="networkidle", timeout=30000)
+                await page.wait_for_timeout(5000)
 
-                        // Check if it has a video element (completed)
-                        const video = card.querySelector('video');
-                        if (video && video.src) return {found: true, src: video.src};
-
-                        // Check for completed thumbnail (not generating)
-                        const img = card.querySelector('img');
-                        const hasGenerating = text.includes('Gerando') || text.includes('Generating');
-                        if (img && !hasGenerating) return {found: true, src: img.src};
+                # Search for our audio name in the page
+                found = await page.evaluate('''(audioName) => {
+                    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                    while (walker.nextNode()) {
+                        if (walker.currentNode.textContent.includes(audioName)) {
+                            // Check if the parent card has an img (= video ready, not generating)
+                            let el = walker.currentNode.parentElement;
+                            for (let i = 0; i < 5; i++) {
+                                if (el.parentElement) el = el.parentElement;
+                                const img = el.querySelector('img');
+                                if (img && img.src) {
+                                    // Check if this card shows "Generating" text
+                                    const text = el.innerText || '';
+                                    if (text.includes('Gerando') || text.includes('Generating')) {
+                                        return {status: 'generating'};
+                                    }
+                                    return {status: 'ready', img: img.src.substring(0, 80)};
+                                }
+                            }
+                            return {status: 'found_no_img'};
+                        }
                     }
+                    return {status: 'not_found'};
+                }''', audio_name)
 
-                    // Fallback: check any video on page
-                    const videos = document.querySelectorAll('video');
-                    for (const v of videos) {
-                        if (v.src && v.src.includes('http')) return {found: true, src: v.src};
-                    }
+                status = found.get("status", "not_found")
+                print(f"[DreamFace] Status do video: {status} ({elapsed}s)", flush=True)
 
-                    return {found: false, src: ''};
-                }''', search_term)
-
-                if has_our_video and has_our_video.get("found") and elapsed >= min_wait:
-                    print(f"[DreamFace] Nosso video encontrado! ({elapsed}s) src: {has_our_video.get('src', '')[:60]}", flush=True)
-                    await page.wait_for_timeout(3000)
+                if status == "ready":
+                    print(f"[DreamFace] Video PRONTO na /creation! ({elapsed}s)", flush=True)
                     return
-
-                # Check if still generating
-                is_generating = False
-                for text in ["Gerando...", "Generating...", "Processing"]:
-                    try:
-                        el = page.get_by_text(text)
-                        if await el.is_visible(timeout=1000):
-                            is_generating = True
-                            break
-                    except Exception:
-                        pass
-
-                if is_generating:
-                    print(f"[DreamFace] Processando... ({elapsed}s)", flush=True)
-                    if on_progress:
-                        on_progress(f"Processing... ({elapsed}s)")
-                elif elapsed >= min_wait:
-                    print(f"[DreamFace] Sem 'Gerando' apos {elapsed}s - considerando completo", flush=True)
-                    await page.wait_for_timeout(5000)
-                    return
-                else:
-                    print(f"[DreamFace] Aguardando... ({elapsed}s, minimo {min_wait}s)", flush=True)
+                elif status == "generating":
+                    print(f"[DreamFace] Ainda gerando... ({elapsed}s)", flush=True)
+                elif status == "not_found":
+                    print(f"[DreamFace] Video nao encontrado na /creation, scrollando... ({elapsed}s)", flush=True)
+                    for _ in range(3):
+                        await page.evaluate('window.scrollBy(0, 500)')
+                        await page.wait_for_timeout(1000)
 
             except Exception as e:
-                print(f"[DreamFace] Erro: {e}", flush=True)
+                print(f"[DreamFace] Erro ao verificar /creation: {e}", flush=True)
 
             await page.wait_for_timeout(check_interval * 1000)
 
-            # Refresh page every 90s
-            if elapsed > 0 and elapsed % 90 == 0:
-                print(f"[DreamFace] Recarregando pagina ({elapsed}s)...", flush=True)
-                try:
-                    await page.reload(wait_until="networkidle")
-                    await page.wait_for_timeout(3000)
-                except Exception:
-                    pass
-
         raise TimeoutError(
-            f"DreamFace: Processing did not complete within {timeout}s"
+            f"DreamFace: Video '{audio_name}' nao ficou pronto em {timeout}s"
         )
 
     async def _download_result(self, page: Page, project_name: str = "") -> str:
