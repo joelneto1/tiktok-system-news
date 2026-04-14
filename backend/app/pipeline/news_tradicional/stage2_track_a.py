@@ -4,7 +4,7 @@ import tempfile
 
 from app.automation.account_rotator import account_rotator
 from app.automation.dreamface import dreamface_automation
-from app.database import async_session_factory
+import app.database as db_module
 from app.processing.asset_manager import asset_manager
 from app.processing.ffmpeg import ffmpeg_processor
 from app.services.minio_client import minio_client
@@ -72,7 +72,7 @@ async def process_avatar(
 
     # Step 1: Get DreamFace account
     log("Buscando conta DreamFace...")
-    async with async_session_factory() as fresh_db:
+    async with db_module.async_session_factory() as fresh_db:
         account = await account_rotator.get_next_account("dreamface", fresh_db)
         if not account:
             raise RuntimeError("No active DreamFace accounts available")

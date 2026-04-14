@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import async_session_factory
+import app.database as db_module
 from app.models.connection_account import ConnectionAccount
 from app.utils.logger import logger
 
@@ -148,7 +148,7 @@ class AccountRotator:
         error_message: str | None = None,
     ) -> None:
         """Update account after use (credits, status, etc.)."""
-        async with async_session_factory() as db:
+        async with db_module.async_session_factory() as db:
             from sqlalchemy import update
             stmt = update(ConnectionAccount).where(
                 ConnectionAccount.id == account.id

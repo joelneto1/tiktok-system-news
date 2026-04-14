@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
+import app.database as db_module
 from app.models.log_entry import LogEntry
 from app.models.video import Video
 from app.utils.logger import logger
@@ -33,7 +33,7 @@ async def update_progress(
         message: Human-readable status message.
         job_id: Optional Celery task ID for cross-referencing.
     """
-    async with async_session_factory() as session:
+    async with db_module.async_session_factory() as session:
         try:
             # ── Update Video record ──────────────────────────────────
             result = await session.execute(

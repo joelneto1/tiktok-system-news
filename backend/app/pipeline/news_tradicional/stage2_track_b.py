@@ -6,7 +6,7 @@ import tempfile
 from app.automation.account_rotator import account_rotator
 from app.automation.grok import grok_automation
 from app.config import settings
-from app.database import async_session_factory
+import app.database as db_module
 from app.processing.asset_manager import asset_manager
 from app.processing.ffmpeg import ffmpeg_processor
 from app.services.minio_client import minio_client
@@ -155,7 +155,7 @@ async def process_brolls(
 
         # ── Step 5: Get Grok account ─────────────────────────────
         log("5/7 Buscando conta Grok...")
-        async with async_session_factory() as fresh_db:
+        async with db_module.async_session_factory() as fresh_db:
             account = await account_rotator.get_next_account("grok", fresh_db)
             if not account:
                 raise RuntimeError("No active Grok accounts available")
