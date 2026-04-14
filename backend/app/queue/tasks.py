@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from app.database import async_session_factory
+import app.database as db_module  # Import module, not the factory directly
 from app.models.reference import Reference
 from app.models.sfx import SoundEffect
 from app.models.system_prompt import SystemPrompt
@@ -75,7 +75,7 @@ async def _run_pipeline(task, video_id: str, model_type: str) -> None:
     """
 
     # ── Phase 1: Load all data from DB (short session) ──────────────
-    async with async_session_factory() as db:
+    async with db_module.async_session_factory() as db:
         result = await db.execute(select(Video).where(Video.id == video_id))
         video = result.scalar_one_or_none()
 
@@ -193,7 +193,7 @@ async def _run_pipeline(task, video_id: str, model_type: str) -> None:
     )
 
     # ── Phase 3: Persist result (fresh short session) ───────────────
-    async with async_session_factory() as db:
+    async with db_module.async_session_factory() as db:
         result = await db.execute(select(Video).where(Video.id == video_id))
         video = result.scalar_one_or_none()
         if video:
