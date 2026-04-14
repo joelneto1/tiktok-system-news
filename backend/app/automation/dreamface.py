@@ -389,20 +389,60 @@ class DreamFaceAutomation:
         await page.wait_for_timeout(3000)
 
     async def _click_generate(self, page: Page) -> Page:
-        """Click the Generate button. Opens new tab with creation page.
+        """Click the Generate button. May open new tab or stay on same page."""
+        print("[DreamFace] Clicando em Gerar...", flush=True)
 
-        Returns the new Page (creation tab).
-        """
-        self.logger.info("DreamFace: Clicking Generate...")
+        # Screenshot before clicking
+        await page.screenshot(path="/tmp/dreamface_before_gerar.png")
 
-        # expect_page() captures the new tab that opens
-        async with page.context.expect_page() as new_page_info:
-            await page.get_by_role("button", name="Gerar").click()
+        # Try to capture new tab
+        try:
+            async with page.context.expect_page(timeout=15000) as new_page_info:
+                await page.get_by_role("button", name="Gerar").click()
+            creation_page = await new_page_info.value
+            await creation_page.wait_for_load_state("networkidle")
+            print(f"[DreamFace] Nova aba aberta: {creation_page.url}", flush=True)
+            return creation_page
+        except Exception as e1:
+            print(f"[DreamFace] Nova aba nao abriu: {e1}", flush=True)
 
-        creation_page = await new_page_info.value
-        await creation_page.wait_for_load_state("networkidle")
-        self.logger.info(f"DreamFace: Creation page opened: {creation_page.url}")
-        return creation_page
+        # Fallback: button might not open new tab — check if page URL changed
+        await page.wait_for_timeout(3000)
+        print(f"[DreamFace] URL apos clique: {page.url}", flush=True)
+        await page.screenshot(path="/tmp/dreamface_after_gerar.png")
+
+        # Try clicking again with JavaScript
+        print("[DreamFace] Tentando clique via JavaScript...", flush=True)
+        try:
+            async with page.context.expect_page(timeout=15000) as new_page_info:
+                await page.evaluate('''() => {
+                    const btns = document.querySelectorAll('button');
+                    for (const b of btns) {
+                        if (b.innerText.includes('Gerar') || b.innerText.includes('Generate')) {
+                            b.click();
+                            return true;
+                        }
+                    }
+                    return false;
+                }''')
+            creation_page = await new_page_info.value
+            await creation_page.wait_for_load_state("networkidle")
+            print(f"[DreamFace] Nova aba (JS): {creation_page.url}", flush=True)
+            return creation_page
+        except Exception as e2:
+            print(f"[DreamFace] JS clique tambem nao abriu aba: {e2}", flush=True)
+
+        # Last resort: return same page (generation might happen in-page)
+        await page.wait_for_timeout(5000)
+        body_text = await page.evaluate('() => document.body?.innerText?.substring(0, 200) || ""')
+        print(f"[DreamFace] Pagina atual: {body_text[:100]}", flush=True)
+
+        # Check if generation started on the same page
+        if "creation" in page.url or "Gerando" in body_text:
+            print("[DreamFace] Geracao iniciada na mesma pagina!", flush=True)
+            return page
+
+        raise RuntimeError("DreamFace: Botao Gerar nao abriu aba de criacao")
 
     async def _wait_for_completion(
         self,
