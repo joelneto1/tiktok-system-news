@@ -386,7 +386,24 @@ class DreamFaceAutomation:
         else:
             await page.locator("body").set_input_files(audio_path)
             self.logger.info("DreamFace: Audio file set via body")
-        await page.wait_for_timeout(3000)
+
+        # Wait for audio to process — Gerar button stays disabled until ready
+        print("[DreamFace] Aguardando audio processar (botao Gerar fica disabled ate carregar)...", flush=True)
+        for i in range(12):
+            await page.wait_for_timeout(5000)
+            is_disabled = await page.evaluate('''() => {
+                const btns = document.querySelectorAll('button');
+                for (const b of btns) {
+                    if (b.innerText.includes('Gerar')) return b.disabled;
+                }
+                return true;
+            }''')
+            if not is_disabled:
+                print(f"[DreamFace] Botao Gerar HABILITADO! ({(i+1)*5}s)", flush=True)
+                break
+            print(f"[DreamFace] Botao Gerar ainda disabled ({(i+1)*5}s)...", flush=True)
+        else:
+            print("[DreamFace] AVISO: Botao Gerar ainda disabled apos 60s", flush=True)
 
     async def _click_generate(self, page: Page) -> Page:
         """Click Generate button — opens /creation page in new tab."""
